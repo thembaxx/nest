@@ -1,0 +1,774 @@
+"use client";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import {
+  Archive,
+  ArrowDownUp,
+  ArrowRight,
+  ArrowUpRight,
+  Bookmark,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Cloud,
+  CloudOff,
+  Command,
+  Folder,
+  Heart,
+  LayoutGrid,
+  Link2,
+  List,
+  Menu,
+  Plus,
+  Search,
+  Settings,
+  Sparkles,
+  Upload,
+  X,
+  BookOpen,
+  Network,
+  Leaf,
+  Download,
+} from "lucide-react";
+import { useLibrary } from "./library-provider";
+import { NestMark, Modal, Empty } from "./ui";
+import { BookmarkCard } from "./bookmark-card";
+import { AddDialog } from "./add-dialog";
+import { SettingsDialog } from "./settings-dialog";
+import { DetailDialog } from "./detail-dialog";
+import { OnboardingDialog } from "./onboarding-dialog";
+import { AssistantDialog } from "./assistant-dialog";
+import { topics, type View } from "@/lib/types";
+import { searchScore } from "@/lib/bookmarks";
+const ConnectionsDialog = dynamic(
+  () => import("./connections-dialog").then((m) => m.ConnectionsDialog),
+  { ssr: false },
+);
+type InstallEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: string }>;
+};
+export function NestApp() {
+  const { library, settings, ready, syncState, online, setLibrary, toast } = useLibrary();
+  const [view, setView] = useState<View>("all");
+  const [query, setQuery] = useState("");
+  const [topic, setTopic] = useState("All");
+  const [sort, setSort] = useState("newest");
+  const [layout, setLayout] = useState("grid");
+  const [dialog, setDialog] = useState<
+    | "add"
+    | "import"
+    | "settings"
+    | "ai-settings"
+    | "welcome"
+    | "assistant"
+    | "collection"
+    | "connections"
+    | "install"
+    | null
+  >(null);
+  const [detail, setDetail] = useState<string | null>(null);
+  const [mobile, setMobile] = useState(false);
+  const [initialLink, setInitialLink] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState("lilac");
+  const [aiIds, setAiIds] = useState<string[] | undefined>();
+  const [installEvent, setInstallEvent] = useState<InstallEvent | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const onboardChecked = useRef(false);
+  useEffect(() => {
+    if (!ready || onboardChecked.current) return;
+    onboardChecked.current = true;
+    queueMicrotask(() => {
+      const params = new URLSearchParams(location.search);
+      const shared = [params.get("url"), params.get("text"), params.get("title")]
+        .filter(Boolean)
+        .join("\n");
+      if (shared) {
+        setInitialLink(shared);
+        setDialog("add");
+        history.replaceState(null, "", location.pathname);
+      } else if (params.get("action") === "add") {
+        setDialog("add");
+        history.replaceState(null, "", location.pathname);
+      } else if (!settings.onboarded) setDialog("welcome");
+    });
+  }, [ready, settings.onboarded]);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+      if (e.key === "Escape") setMobile(false);
+    };
+    const install = (e: Event) => {
+      e.preventDefault();
+      setInstallEvent(e as InstallEvent);
+    };
+    window.addEventListener("keydown", key);
+    window.addEventListener("beforeinstallprompt", install);
+    if ("serviceWorker" in navigator)
+      void navigator.serviceWorker.register("/sw.js").catch(() => {});
+    return () => {
+      window.removeEventListener("keydown", key);
+      window.removeEventListener("beforeinstallprompt", install);
+    };
+  }, []);
+  const active = useMemo(() => library.bookmarks.filter((b) => !b.deletedAt), [library.bookmarks]);
+  const collections = library.lists.filter((l) => !l.deletedAt);
+  const filtered = useMemo(() => {
+    let result = active
+      .filter((b) => {
+        if (view === "archive") return b.archived;
+        if (view === "dead") return b.status === "dead";
+        if (b.archived) return false;
+        if (view === "favorites") return b.favorite;
+        if (view === "unread") return !b.read;
+        if (view.startsWith("list:")) return b.listIds.includes(view.slice(5));
+        return true;
+      })
+      .filter((b) => topic === "All" || b.topic === topic)
+      .filter((b) => (aiIds ? aiIds.includes(b.id) : searchScore(b, query) > 0));
+    return result.sort((a, b) => {
+      if (query && !aiIds && sort === "relevance")
+        return searchScore(b, query) - searchScore(a, query);
+      if (sort === "oldest") return a.createdAt - b.createdAt;
+      if (sort === "az") return a.title.localeCompare(b.title);
+      return b.createdAt - a.createdAt;
+    });
+  }, [active, view, topic, query, sort, aiIds]);
+  const viewTitle =
+    view === "favorites"
+      ? "Your favorites"
+      : view === "unread"
+        ? "A little reading, for later"
+        : view === "archive"
+          ? "Tucked away, for now"
+          : view === "dead"
+            ? "Links that need a little care"
+            : view.startsWith("list:")
+              ? collections.find((l) => l.id === view.slice(5))?.name || "Your collection"
+              : "Good things, kept close.";
+  const navigate = (v: View) => {
+    setView(v);
+    setTopic("All");
+    setQuery("");
+    setAiIds(undefined);
+    setMobile(false);
+  };
+  const openDetail = useCallback((id: string) => {
+    setDialog(null);
+    setDetail(id);
+  }, []);
+  const close = () => {
+    setDialog(null);
+    setInitialLink("");
+  };
+  function createCollection() {
+    if (!newName.trim()) return;
+    if (collections.some((l) => l.name.toLowerCase() === newName.trim().toLowerCase())) {
+      toast("That collection is already at home here.");
+      return;
+    }
+    const id = crypto.randomUUID();
+    setLibrary((s) => ({
+      ...s,
+      lists: [...s.lists, { id, name: newName.trim(), color: newColor, updatedAt: Date.now() }],
+    }));
+    setNewName("");
+    setDialog(null);
+    navigate(`list:${id}`);
+    toast("A new little home for your ideas.");
+  }
+  async function install() {
+    if (installEvent) {
+      await installEvent.prompt();
+      const choice = await installEvent.userChoice;
+      if (choice.outcome === "accepted") toast("Nest is finding a home on your device.");
+      setInstallEvent(null);
+    } else setDialog("install");
+  }
+  if (!ready)
+    return (
+      <div className="app-loading">
+        <NestMark />
+        <span>A little room for your curiosity.</span>
+      </div>
+    );
+  return (
+    <div className={`app-shell ${mobile ? "menu-open" : ""}`}>
+      {mobile && (
+        <button
+          className="sidebar-scrim"
+          aria-label="Close navigation"
+          onClick={() => setMobile(false)}
+        />
+      )}
+      <aside className="sidebar">
+        <a
+          className="brand"
+          href="/"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("all");
+          }}
+          aria-label="Nest home"
+        >
+          <NestMark />
+          <span>
+            nest<span className="brand-period">.</span>
+          </span>
+        </a>
+        <button className="space-selector" onClick={() => setDialog("settings")}>
+          <span className="space-avatar">Y</span>
+          <span>
+            Your personal space<small>A home for your ideas</small>
+          </span>
+          <ChevronDown size={13} />
+        </button>
+        <span className="nav-label">YOUR LIBRARY</span>
+        <nav className="main-nav" aria-label="Library">
+          <Nav
+            icon={Bookmark}
+            label="All bookmarks"
+            active={view === "all"}
+            count={active.filter((b) => !b.archived).length}
+            onClick={() => navigate("all")}
+          />
+          <Nav
+            icon={Heart}
+            label="Favorites"
+            active={view === "favorites"}
+            count={active.filter((b) => b.favorite && !b.archived).length}
+            onClick={() => navigate("favorites")}
+          />
+          <Nav
+            icon={BookOpen}
+            label="Read later"
+            active={view === "unread"}
+            count={active.filter((b) => !b.read && !b.archived).length}
+            onClick={() => navigate("unread")}
+          />
+        </nav>
+        <div className="nav-heading">
+          <span className="nav-label">COLLECTIONS</span>
+          <button
+            className="icon-button"
+            aria-label="Create collection"
+            onClick={() => setDialog("collection")}
+          >
+            <Plus size={15} />
+          </button>
+        </div>
+        <nav className="collection-nav" aria-label="Collections">
+          {collections.map((l) => (
+            <button
+              key={l.id}
+              className={view === `list:${l.id}` ? "active" : ""}
+              onClick={() => navigate(`list:${l.id}`)}
+            >
+              <span className={`color-dot ${l.color}`} />
+              <span>{l.name}</span>
+              <span className="nav-count">
+                {active.filter((b) => b.listIds.includes(l.id) && !b.archived).length}
+              </span>
+            </button>
+          ))}
+          <button className="new-collection" onClick={() => setDialog("collection")}>
+            <Plus size={14} /> New collection
+          </button>
+        </nav>
+        <span className="nav-label smart-label">A LITTLE HOUSEKEEPING</span>
+        <nav className="main-nav" aria-label="Housekeeping">
+          <Nav
+            icon={Link2}
+            label="Broken links"
+            active={view === "dead"}
+            count={active.filter((b) => b.status === "dead").length || undefined}
+            onClick={() => navigate("dead")}
+          />
+          <Nav
+            icon={Archive}
+            label="Archive"
+            active={view === "archive"}
+            onClick={() => navigate("archive")}
+          />
+        </nav>
+        <div className="sidebar-bottom">
+          <button className="companion-card" onClick={() => setDialog("assistant")}>
+            <span className="companion-spark">
+              <Sparkles size={18} />
+            </span>
+            <strong>A little help from Nest</strong>
+            <span>“Find that thing I saved…”</span>
+            <ArrowUpRight size={16} />
+          </button>
+          <button className="sidebar-setting" onClick={() => setDialog("settings")}>
+            <Settings size={17} /> Settings & preferences
+          </button>
+          <div className="sidebar-footer">
+            <span className="status-dot" /> A calmer kind of collecting.
+          </div>
+        </div>
+      </aside>
+      <div className="main-shell">
+        <header className="topbar">
+          <button
+            className="icon-button mobile-menu"
+            aria-label="Open navigation"
+            onClick={() => setMobile(!mobile)}
+          >
+            <Menu size={21} />
+          </button>
+          <div className="breadcrumbs">
+            <span>Personal space</span>
+            <ChevronRight size={13} />
+            <strong>{view.startsWith("list:") ? "Collection" : "My library"}</strong>
+          </div>
+          <div className="topbar-right">
+            <button className="sync-status" onClick={() => setDialog("settings")}>
+              {!online ? <CloudOff size={15} /> : <Cloud size={15} />}
+              <span>
+                {!online
+                  ? "Offline · saved locally"
+                  : syncState === "synced"
+                    ? "All tucked away"
+                    : syncState === "syncing"
+                      ? "Syncing…"
+                      : syncState === "unconfigured"
+                        ? "Sync needs setup"
+                        : syncState === "error"
+                          ? "Sync will retry"
+                          : "Saved on this device"}
+              </span>
+              <i className={!online ? "offline" : ""} />
+            </button>
+            <button
+              className="profile"
+              onClick={() => setDialog("settings")}
+              aria-label="Open your preferences"
+            >
+              Y
+            </button>
+          </div>
+        </header>
+        <main id="main-content">
+          <div className="greeting">
+            <div>
+              <div className="eyebrow greeting-label">
+                <span className="little-flower">✳</span> YOUR LITTLE CORNER OF THE INTERNET
+              </div>
+              <h1>{viewTitle}</h1>
+              <p>
+                {view === "all"
+                  ? "Save what sparks something. Find it when you need it."
+                  : view === "dead"
+                    ? "Repeatedly missing pages land here. Temporary errors get another chance."
+                    : view === "archive"
+                      ? "Out of the way. Always here when you need them."
+                      : "A few good things, all in one place."}
+              </p>
+            </div>
+            <div className="greeting-actions">
+              <button className="button import-button" onClick={() => setDialog("import")}>
+                <Upload size={16} /> Import
+              </button>
+              <button className="button primary" onClick={() => setDialog("add")}>
+                <Plus size={18} /> Add bookmark
+              </button>
+            </div>
+          </div>
+          {view === "all" && !query && (
+            <section className="collections-section" aria-label="Your collections">
+              <div className="section-title">
+                <h2>
+                  Your collections <span>{collections.length}</span>
+                </h2>
+                <button className="text-button" onClick={() => setDialog("collection")}>
+                  New collection <Plus size={14} />
+                </button>
+              </div>
+              <div className="collection-cards">
+                {collections.slice(0, 3).map((l, i) => (
+                  <button
+                    key={l.id}
+                    className={`collection-card collection-${l.color}`}
+                    onClick={() => navigate(`list:${l.id}`)}
+                  >
+                    <div className={`collection-art collection-art-${i % 3}`} aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                    <span className="collection-top">
+                      <Folder size={18} strokeWidth={1.5} />
+                      <ArrowUpRight size={17} />
+                    </span>
+                    <div>
+                      <h3>{l.name}</h3>
+                      <p>
+                        {active.filter((b) => b.listIds.includes(l.id) && !b.archived).length}{" "}
+                        bookmarks{" "}
+                        <span>
+                          ·{" "}
+                          {i === 0
+                            ? "A little visual joy"
+                            : i === 1
+                              ? "Made for the curious"
+                              : "Room to slow down"}
+                        </span>
+                      </p>
+                    </div>
+                  </button>
+                ))}
+                {collections.length === 0 && (
+                  <button
+                    className="collection-card collection-create"
+                    onClick={() => setDialog("collection")}
+                  >
+                    <Plus size={25} />
+                    <h3>A place for your next rabbit hole</h3>
+                    <p>Create your first collection</p>
+                  </button>
+                )}
+              </div>
+            </section>
+          )}
+          <section className="library-section" aria-labelledby="library-heading">
+            <div className="section-title library-title">
+              <h2 id="library-heading">
+                {query
+                  ? "A few things you might like"
+                  : view === "all"
+                    ? "All bookmarks"
+                    : view === "dead"
+                      ? "Broken links"
+                      : "Bookmarks"}{" "}
+                <span>{filtered.length}</span>
+              </h2>
+              <div className="library-heading-right">
+                {settings.autoSort && (
+                  <span className="organized">
+                    <Sparkles size={12} /> A little more organized
+                  </span>
+                )}
+                <div className="view-toggle" aria-label="View options">
+                  <button
+                    className={layout === "grid" ? "active" : ""}
+                    onClick={() => setLayout("grid")}
+                    aria-label="Grid view"
+                    aria-pressed={layout === "grid"}
+                  >
+                    <LayoutGrid size={16} />
+                  </button>
+                  <button
+                    className={layout === "list" ? "active" : ""}
+                    onClick={() => setLayout("list")}
+                    aria-label="List view"
+                    aria-pressed={layout === "list"}
+                  >
+                    <List size={17} />
+                  </button>
+                  <button
+                    onClick={() => setDialog("connections")}
+                    aria-label="Explore topic connections"
+                  >
+                    <Network size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="search-toolbar">
+              <div className="search-field">
+                <Search size={19} />
+                <input
+                  ref={searchRef}
+                  aria-label="Search bookmarks"
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setAiIds(undefined);
+                    if (e.target.value) setSort("relevance");
+                  }}
+                  placeholder="Search your library, or follow a thought…"
+                />
+                {query ? (
+                  <button
+                    className="icon-button"
+                    aria-label="Clear search"
+                    onClick={() => {
+                      setQuery("");
+                      setAiIds(undefined);
+                    }}
+                  >
+                    <X size={15} />
+                  </button>
+                ) : (
+                  <kbd>
+                    <Command size={11} /> K
+                  </kbd>
+                )}
+                <button className="ask-search" onClick={() => setDialog("assistant")}>
+                  <Sparkles size={14} />
+                  <span>Ask Nest</span>
+                </button>
+              </div>
+              <label className="sort-select">
+                <ArrowDownUp size={15} />
+                <select
+                  aria-label="Sort bookmarks"
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value)}
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="az">Title A–Z</option>
+                  <option value="relevance">Most relevant</option>
+                </select>
+                <ChevronDown size={13} />
+              </label>
+            </div>
+            <div className="filter-row">
+              <div className="topic-filters" aria-label="Filter by topic">
+                {[
+                  "All",
+                  ...topics.filter((t) => t !== "Unsorted"),
+                  ...(active.some((b) => b.topic === "Unsorted") ? ["Unsorted"] : []),
+                ].map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTopic(t)}
+                    className={topic === t ? "active" : ""}
+                    aria-pressed={topic === t}
+                  >
+                    {t === "All" ? "Everything" : t}
+                    {topic === t && <span>{filtered.length}</span>}
+                  </button>
+                ))}
+              </div>
+              <span className="results-label">{filtered.length} little finds</span>
+            </div>
+            {filtered.length ? (
+              <div className={`bookmark-grid ${layout === "list" ? "list-view" : ""}`}>
+                {filtered.map((b, i) => (
+                  <BookmarkCard
+                    key={b.id}
+                    bookmark={b}
+                    onOpen={() => setDetail(b.id)}
+                    list={layout === "list"}
+                    index={i}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Empty
+                title={
+                  query
+                    ? "A new thread to follow."
+                    : view === "dead"
+                      ? "Nothing broken. A lovely thing."
+                      : "A little space for something good."
+                }
+                description={
+                  query
+                    ? "Try a different word, topic, or a simpler description."
+                    : view === "dead"
+                      ? "Synced links are checked on a schedule. Confirmed missing pages will appear here."
+                      : "Add a bookmark, import your favorites, or explore another collection."
+                }
+              >
+                {query ? (
+                  <button
+                    className="button secondary"
+                    onClick={() => {
+                      setQuery("");
+                      setAiIds(undefined);
+                      setTopic("All");
+                    }}
+                  >
+                    Clear search
+                  </button>
+                ) : (
+                  view !== "dead" && (
+                    <button className="button primary" onClick={() => setDialog("add")}>
+                      <Plus size={15} /> Save your first find
+                    </button>
+                  )
+                )}
+              </Empty>
+            )}
+          </section>
+          <footer className="main-footer">
+            <span>
+              <Leaf size={13} /> A place for your curiosity to grow.
+            </span>
+            {active.some((b) => b.demo) && (
+              <button onClick={() => setDialog("welcome")}>
+                Exploring a sample library{" "}
+                <span>
+                  Make it yours <ArrowRight size={13} />
+                </span>
+              </button>
+            )}
+          </footer>
+        </main>
+      </div>
+      <nav className="mobile-bottom-nav" aria-label="Quick navigation">
+        <button onClick={() => navigate("all")} className={view === "all" ? "active" : ""}>
+          <Bookmark size={20} />
+          <span>Library</span>
+        </button>
+        <button
+          onClick={() => navigate("favorites")}
+          className={view === "favorites" ? "active" : ""}
+        >
+          <Heart size={20} />
+          <span>Favorites</span>
+        </button>
+        <button className="mobile-add" aria-label="Add bookmark" onClick={() => setDialog("add")}>
+          <Plus size={25} />
+        </button>
+        <button onClick={() => setDialog("assistant")}>
+          <Sparkles size={20} />
+          <span>Ask Nest</span>
+        </button>
+        <button onClick={() => setDialog("settings")}>
+          <Settings size={20} />
+          <span>Settings</span>
+        </button>
+      </nav>
+      {(dialog === "add" || dialog === "import") && (
+        <AddDialog onClose={close} initial={initialLink} importMode={dialog === "import"} />
+      )}{" "}
+      {(dialog === "settings" || dialog === "ai-settings") && (
+        <SettingsDialog
+          initialTab={dialog === "ai-settings" ? "ai" : "general"}
+          onClose={close}
+          onInstall={() => void install()}
+        />
+      )}{" "}
+      {dialog === "welcome" && (
+        <OnboardingDialog
+          onClose={close}
+          onImport={() => setDialog("import")}
+          onAI={() => setDialog("ai-settings")}
+        />
+      )}{" "}
+      {dialog === "assistant" && (
+        <AssistantDialog
+          onClose={close}
+          onSettings={() => setDialog("ai-settings")}
+          onSearch={(q, ids) => {
+            setView("all");
+            setTopic("All");
+            setQuery(q);
+            setAiIds(ids);
+            setSort("relevance");
+          }}
+        />
+      )}{" "}
+      {detail && <DetailDialog bookmarkId={detail} onClose={() => setDetail(null)} />}{" "}
+      {dialog === "connections" && (
+        <ConnectionsDialog bookmarks={filtered} onClose={close} onOpen={openDetail} />
+      )}
+      {dialog === "collection" && (
+        <Modal
+          title="A home for a little obsession."
+          subtitle="Group anything that belongs together. You can add bookmarks whenever you like."
+          onClose={close}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              createCollection();
+            }}
+          >
+            <label className="field-label" htmlFor="collection-name">
+              Collection name
+            </label>
+            <input
+              id="collection-name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              maxLength={80}
+              placeholder="Weekend rabbit holes"
+            />
+            <span className="field-label">A little color</span>
+            <div className="color-choices">
+              {["lilac", "blue", "green", "yellow", "peach"].map((c) => (
+                <button
+                  type="button"
+                  key={c}
+                  className={`color-choice ${c} ${newColor === c ? "active" : ""}`}
+                  onClick={() => setNewColor(c)}
+                  aria-label={`${c} collection color`}
+                  aria-pressed={newColor === c}
+                >
+                  {newColor === c && <Check size={17} />}
+                </button>
+              ))}
+            </div>
+            <footer className="modal-footer">
+              <span>Make room for what moves you.</span>
+              <button type="submit" className="button primary" disabled={!newName.trim()}>
+                Create collection <Plus size={16} />
+              </button>
+            </footer>
+          </form>
+        </Modal>
+      )}
+      {dialog === "install" && (
+        <Modal
+          title="A little closer to home."
+          subtitle="Keep Nest on your home screen for faster access and offline browsing."
+          onClose={close}
+        >
+          <div className="install-illustration">
+            <NestMark />
+          </div>
+          <div className="note-box">
+            <Download size={22} />
+            <div>
+              <strong>Install from your browser</strong>
+              <p>
+                On iPhone or iPad, open Nest in Safari, tap Share, then Add to Home Screen. On
+                Android or desktop, use your browser’s menu and choose Install app or Add to Home
+                Screen.
+              </p>
+              <p>
+                Your library remains available offline after the first visit. Model downloads need
+                an internet connection.
+              </p>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+function Nav({
+  icon: Icon,
+  label,
+  active,
+  count,
+  onClick,
+}: {
+  icon: typeof Bookmark;
+  label: string;
+  active: boolean;
+  count?: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={active ? "active" : ""}
+      aria-current={active ? "page" : undefined}
+    >
+      <Icon size={18} strokeWidth={1.65} />
+      <span>{label}</span>
+      {count !== undefined && <span className="nav-count">{count}</span>}
+    </button>
+  );
+}
