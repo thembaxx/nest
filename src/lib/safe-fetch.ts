@@ -4,8 +4,8 @@ import { Agent, fetch as request } from "undici";
 export function publicIp(ip: string): boolean {
   if (ip.includes(":")) {
     const value = ip.toLowerCase();
-    if (value.startsWith("::ffff:")) return publicIp(value.slice(7));
-    return !/^(::|fc|fd|fe[89ab]|ff|2001:db8)/.test(value) && value !== "::1";
+    // Accept global unicast only; reject mapped addresses and transition tunnels.
+    return /^[23][0-9a-f]{0,3}:/.test(value) && !/^(2001:db8:|2002:|2001:0{0,3}:)/.test(value);
   }
   const p = ip.split(".").map(Number);
   return (

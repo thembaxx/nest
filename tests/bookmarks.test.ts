@@ -91,6 +91,10 @@ test("metadata fetching rejects private, link-local, mapped, and loopback addres
     "192.168.1.1",
     "::1",
     "::ffff:127.0.0.1",
+    "::ffff:7f00:1",
+    "::ffff:c0a8:101",
+    "64:ff9b::7f00:1",
+    "2002:7f00:1::",
     "fc00::1",
     "fe80::1",
   ])
@@ -99,4 +103,5 @@ test("metadata fetching rejects private, link-local, mapped, and loopback addres
   assert.equal(publicIp("2606:4700:4700::1111"), true);
   await assert.rejects(() => safeFetch("http://127.0.0.1/"));
   await assert.rejects(() => safeFetch("file:///etc/passwd"));
+  await assert.rejects(() => safeFetch("http://[::ffff:127.0.0.1]/"));
 });
