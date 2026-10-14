@@ -44,7 +44,10 @@ export function SettingsDialog({
     const data =
       format === "json"
         ? JSON.stringify(
-            { ...library, bookmarks: library.bookmarks.filter((b) => !b.demo) },
+            {
+              bookmarks: library.bookmarks.filter((b) => !b.demo && !b.deletedAt),
+              lists: library.lists.filter((l) => !l.deletedAt),
+            },
             null,
             2,
           )

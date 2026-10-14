@@ -58,7 +58,9 @@ export function makeBookmark(url: string, meta: Partial<Bookmark> = {}): Bookmar
     url,
     title: titleFromUrl(url),
     description: "",
-    topic: classify(url),
+    topic: classify(
+      [url, meta.title, meta.description, meta.tags?.join(" ")].filter(Boolean).join(" "),
+    ),
     tags: [],
     listIds: [],
     favorite: false,

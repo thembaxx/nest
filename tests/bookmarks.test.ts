@@ -122,3 +122,15 @@ test("link health needs repeated missing responses and retains confirmed failure
   assert.equal(recovered.status, "healthy");
   assert.equal(recovered.failures, 0);
 });
+
+test("imported titles inform automatic topics without replacing explicit topics", () => {
+  assert.equal(
+    makeBookmark("https://example.com/one", { title: "Thoughtful typography" }).topic,
+    "Design",
+  );
+  assert.equal(
+    makeBookmark("https://example.com/one", { title: "Thoughtful typography", topic: "Reading" })
+      .topic,
+    "Reading",
+  );
+});
