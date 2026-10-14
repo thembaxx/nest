@@ -28,30 +28,34 @@ test("search, topic filters, favorites, and collection navigation", async ({ pag
     .click();
   await expect(page.locator(".bookmark-card")).toHaveCount(5);
 });
-test("bulk paste, deduplication, automatic topic, and persistence", async ({ page }) => {
-  await page.route("**/api/metadata", (route) =>
-    route.fulfill({
-      json: {
-        title: "Typescript testing guide",
-        description: "A guide to better code",
-        status: "healthy",
-      },
-    }),
-  );
-  await page.getByRole("button", { name: "Add bookmark", exact: true }).click();
-  await page
-    .getByLabel("Links or any text with links in it")
-    .fill(
-      "Keep https://example.com/typescript and https://example.org/guide plus https://www.are.na/",
+test.describe("metadata import with deterministic network responses", () => {
+  // Service-worker-owned requests bypass page.route(); offline behavior has separate coverage.
+  test.use({ serviceWorkers: "block" });
+  test("bulk paste, deduplication, automatic topic, and persistence", async ({ page }) => {
+    await page.route("**/api/metadata", (route) =>
+      route.fulfill({
+        json: {
+          title: "Typescript testing guide",
+          description: "A guide to better code",
+          status: "healthy",
+        },
+      }),
     );
-  await page.getByRole("button", { name: "Save 3 bookmarks" }).click();
-  await expect(page.locator(".bookmark-card")).toHaveCount(11);
-  await page.getByRole("textbox", { name: "Search bookmarks" }).fill("typescript");
-  await expect(page.locator(".bookmark-card")).toHaveCount(2);
-  await expect(page.locator(".bookmark-card .topic-tag").first()).toHaveText("Development");
-  await page.waitForTimeout(400);
-  await page.reload();
-  await expect(page.locator(".bookmark-card")).toHaveCount(11);
+    await page.getByRole("button", { name: "Add bookmark", exact: true }).click();
+    await page
+      .getByLabel("Links or any text with links in it")
+      .fill(
+        "Keep https://example.com/typescript and https://example.org/guide plus https://www.are.na/",
+      );
+    await page.getByRole("button", { name: "Save 3 bookmarks" }).click();
+    await expect(page.locator(".bookmark-card")).toHaveCount(11);
+    await page.getByRole("textbox", { name: "Search bookmarks" }).fill("typescript");
+    await expect(page.locator(".bookmark-card")).toHaveCount(2);
+    await expect(page.locator(".bookmark-card .topic-tag").first()).toHaveText("Development");
+    await page.waitForTimeout(400);
+    await page.reload();
+    await expect(page.locator(".bookmark-card")).toHaveCount(11);
+  });
 });
 test("browser HTML import preserves folders and skips duplicates", async ({ page }) => {
   await page.getByRole("button", { name: "Import", exact: true }).click();

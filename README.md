@@ -56,3 +56,13 @@ Metadata and link requests allow only public HTTP(S) addresses on standard ports
 HTML imports preserve folder names as collections. HTML export is flat; use JSON for a complete backup. A browser cannot directly read another browser’s bookmark database, so use its export function. Offline support covers the app and bookmark metadata, not full copies of destination pages. WebLLM’s first download requires internet and compatible WebGPU hardware; browser storage eviction can require downloading again. PWA install and receiving shared links depend on browser support. Three.js has an accessible list fallback.
 
 Automated checks cover link extraction, canonicalization, deduplication, safe exports, sync conflict/tombstone merging, URL/IP validation, schema validation, browser imports, library interactions, mobile layout, theme changes, and offline reloads. Actual GPU model inference and cloud sync require their corresponding hardware/service and are reported separately in release notes.
+
+## Branding and discovery
+
+Nest's identity pairs a sculpted folded-bookmark N with a simple vector symbol and an outlined wordmark. The supplied app-icon image informed the dimensional materials, strong silhouette, and squircle framing. The brand kit is available at `/brand`, and the source guidelines are in `docs/brand.md`. Regenerate derivative assets with `pnpm brand:assets`.
+
+Public, server-rendered About, Guide, Brand, and Privacy pages provide indexable product content. Metadata includes stable production canonicals, Open Graph and Twitter images, favicons, a sitemap, robots rules, and truthful WebApplication / WebSite / FAQ structured data. Preview deployments receive `noindex` directives. Private bookmark records are never included in the sitemap or LLM documents.
+
+`/llms.txt` is the conventional model-readable product index. `/llm.txt` is a singular alias, and `/llms-full.txt` contains the expanded guide and limitations. These files describe the product; they don't expose a user's library or grant permission to use private APIs. LLM discovery files are a community convention and do not guarantee model ingestion, citations, or ranking.
+
+The canonical origin defaults to `https://nest-iota-three.vercel.app`. When adding a custom domain, set `NEXT_PUBLIC_SITE_URL` to its public HTTPS origin and redeploy to update metadata, sitemap, and documentation links. No search-engine ranking or indexing outcome is guaranteed by these technical changes.

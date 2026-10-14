@@ -31,7 +31,7 @@ import {
   Download,
 } from "lucide-react";
 import { useLibrary } from "./library-provider";
-import { NestMark, Modal, Empty } from "./ui";
+import { Modal, Empty } from "./ui";
 import { BookmarkCard } from "./bookmark-card";
 import { AddDialog } from "./add-dialog";
 import { SettingsDialog } from "./settings-dialog";
@@ -191,10 +191,18 @@ export function NestApp() {
   }
   if (!ready)
     return (
-      <div className="app-loading">
-        <NestMark />
-        <span>A little room for your curiosity.</span>
-      </div>
+      <main id="main-content" className="app-loading" aria-busy="true">
+        <img
+          src="/brand/nest-app-icon-128.webp"
+          width="56"
+          height="56"
+          className="brand-app-icon"
+          alt="Nest"
+        />
+        <h1>A smarter home for your bookmarks.</h1>
+        <p>Save links, collect ideas, and find the good things again.</p>
+        <span>Making a little room for your curiosity…</span>
+      </main>
     );
   return (
     <div className={`app-shell ${mobile ? "menu-open" : ""}`}>
@@ -215,7 +223,13 @@ export function NestApp() {
           }}
           aria-label="Nest home"
         >
-          <NestMark />
+          <img
+            src="/brand/nest-app-icon-128.webp"
+            width="38"
+            height="38"
+            className="brand-app-icon"
+            alt=""
+          />
           <span>
             nest<span className="brand-period">.</span>
           </span>
@@ -603,6 +617,12 @@ export function NestApp() {
             <span>
               <Leaf size={13} /> A place for your curiosity to grow.
             </span>
+            <a className="brand-resource-link" href="/about">
+              About Nest <ArrowUpRight size={11} />
+            </a>
+            <a className="brand-resource-link" href="/guide">
+              A little guide <ArrowUpRight size={11} />
+            </a>
             {active.some((b) => b.demo) && (
               <button onClick={() => setDialog("welcome")}>
                 Exploring a sample library{" "}
@@ -725,7 +745,13 @@ export function NestApp() {
           onClose={close}
         >
           <div className="install-illustration">
-            <NestMark />
+            <img
+              src="/brand/nest-app-icon-128.webp"
+              width="72"
+              height="72"
+              className="brand-app-icon"
+              alt="Nest app icon"
+            />
           </div>
           <div className="note-box">
             <Download size={22} />

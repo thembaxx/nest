@@ -11,14 +11,12 @@ export function NestMark({ className = "" }: { className?: string }) {
       fill="none"
       aria-hidden="true"
     >
-      <path d="M7 22c0-9 9-16 23-15 1 13-7 23-16 23-4 0-7-3-7-8Z" fill="currentColor" />
-      <path
-        d="M13 27 26 13M14 21l7 0M20 21v-7"
-        stroke="var(--logo-line, #f5f1d6)"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <path d="M9 32c7 2 16 0 23-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <g transform="translate(-2 -2) scale(.68)" fill="currentColor">
+        <path d="M12 24c0-7 4-12 11-12 4 0 7 2 10 6l-9 7v20c0 6-4 9-11 9-1 0-1-2-1-4V24Z" />
+        <path d="M38 31c5-5 10-8 12-7 2 0 2 2 2 5v20c0 5-4 7-8 6l-6-24Z" />
+        <path d="M13 19c2-6 6-8 11-8 8 0 12 8 16 18l7 16c2 4 3 5 5 3v2c0 4-5 6-9 5-8-1-11-10-15-20l-5-13c-3-7-7-8-10-3Z" />
+        <circle cx="47" cy="17.5" r="4.3" />
+      </g>
     </svg>
   );
 }

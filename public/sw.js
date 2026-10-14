@@ -1,11 +1,17 @@
 /* Nest keeps app assets available offline. Private API responses are never cached. */
-const CACHE = "nest-shell-v1";
+const CACHE = "nest-shell-v2";
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
       .then((cache) =>
-        cache.addAll(["/", "/icons/icon-192.png", "/icons/icon-512.png", "/offline.html"]),
+        cache.addAll([
+          "/",
+          "/icons/icon-192.png?v=2",
+          "/icons/icon-512.png?v=2",
+          "/brand/nest-app-icon-128.webp",
+          "/offline.html",
+        ]),
       ),
   );
   self.skipWaiting();
@@ -40,17 +46,23 @@ self.addEventListener("fetch", (event) => {
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
-            event.waitUntil(caches.open(CACHE).then((c) => c.put("/", copy)));
+            if (url.pathname === "/")
+              event.waitUntil(caches.open(CACHE).then((c) => c.put("/", copy)));
           }
           return response;
         })
-        .catch(async () => (await caches.match("/")) || (await caches.match("/offline.html"))),
+        .catch(async () =>
+          url.pathname === "/"
+            ? (await caches.match("/")) || (await caches.match("/offline.html"))
+            : await caches.match("/offline.html"),
+        ),
     );
     return;
   }
   if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/art/") ||
+    url.pathname.startsWith("/brand/") ||
     url.pathname.startsWith("/icons/")
   )
     event.respondWith(

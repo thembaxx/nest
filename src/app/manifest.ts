@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Nest — Your curious little library",
+    name: "Nest — Smart Bookmark Manager",
     short_name: "Nest",
     description: "Good things, kept close. A calmer home for your bookmarks.",
     id: "/",
@@ -13,16 +13,21 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#f7f6f2",
     categories: ["productivity", "utilities"],
     icons: [
-      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/icons/icon-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/icons/icon-192.png?v=2", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/icon-512.png?v=2", sizes: "512x512", type: "image/png", purpose: "any" },
+      {
+        src: "/icons/icon-maskable.png?v=2",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
     ],
     shortcuts: [
       {
         name: "Save a bookmark",
         short_name: "Save",
         url: "/?action=add",
-        icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
+        icons: [{ src: "/icons/icon-192.png?v=2", sizes: "192x192" }],
       },
     ],
     share_target: {
