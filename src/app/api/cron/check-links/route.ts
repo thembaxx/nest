@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const token = request.headers.get("authorization")?.replace(/^Bearer /, "") || "";
   if (
     !expected ||
-    token.length !== expected.length ||
+    Buffer.byteLength(token) !== Buffer.byteLength(expected) ||
     !timingSafeEqual(Buffer.from(token), Buffer.from(expected))
   )
     return Response.json({ error: "Unauthorized" }, { status: 401 });

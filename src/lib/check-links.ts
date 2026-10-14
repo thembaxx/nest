@@ -1,21 +1,30 @@
 import type { Bookmark } from "./types";
 import { safeFetch } from "./safe-fetch";
-export async function checkLink(b: Bookmark): Promise<Bookmark> {
-  const now = Date.now();
+
+export function applyLinkCheck(
+  bookmark: Bookmark,
+  httpStatus?: number,
+  now = Date.now(),
+): Bookmark {
+  const healthy = httpStatus !== undefined && httpStatus >= 200 && httpStatus < 400;
+  const missing = httpStatus === 404 || httpStatus === 410;
+  const failures = healthy ? 0 : missing ? bookmark.failures + 1 : bookmark.failures;
+  // Ambiguous failures cannot undo an already confirmed missing page.
+  const status = healthy
+    ? "healthy"
+    : (missing && failures >= 2) || bookmark.status === "dead"
+      ? "dead"
+      : "unreachable";
+  return { ...bookmark, status, failures, lastChecked: now, updatedAt: now };
+}
+
+export async function checkLink(bookmark: Bookmark): Promise<Bookmark> {
   try {
-    let r = await safeFetch(b.url, "HEAD");
-    if (r.status === 405 || r.status === 501) r = await safeFetch(b.url, "GET", 1024);
-    const healthy = r.status >= 200 && r.status < 400;
-    const missing = r.status === 404 || r.status === 410;
-    const failures = missing ? b.failures + 1 : healthy ? 0 : b.failures;
-    return {
-      ...b,
-      status: healthy ? "healthy" : missing && failures >= 2 ? "dead" : "unreachable",
-      failures,
-      lastChecked: now,
-      updatedAt: now,
-    };
+    let response = await safeFetch(bookmark.url, "HEAD");
+    if (response.status === 405 || response.status === 501)
+      response = await safeFetch(bookmark.url, "GET", 1024);
+    return applyLinkCheck(bookmark, response.status);
   } catch {
-    return { ...b, status: "unreachable", lastChecked: now, updatedAt: now };
+    return applyLinkCheck(bookmark);
   }
 }

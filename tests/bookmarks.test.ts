@@ -10,6 +10,7 @@ import {
   exportHtml,
 } from "../src/lib/bookmarks";
 import { publicIp, safeFetch } from "../src/lib/safe-fetch";
+import { applyLinkCheck } from "../src/lib/check-links";
 import { librarySchema } from "../src/lib/types";
 test("extracts multiple links from prose and ignores unsafe protocols", () => {
   assert.deepEqual(
@@ -104,4 +105,20 @@ test("metadata fetching rejects private, link-local, mapped, and loopback addres
   await assert.rejects(() => safeFetch("http://127.0.0.1/"));
   await assert.rejects(() => safeFetch("file:///etc/passwd"));
   await assert.rejects(() => safeFetch("http://[::ffff:127.0.0.1]/"));
+});
+
+test("link health needs repeated missing responses and retains confirmed failures until recovery", () => {
+  const bookmark = makeBookmark("https://example.com");
+  const first = applyLinkCheck(bookmark, 404, 1);
+  assert.equal(first.status, "unreachable");
+  const blocked = applyLinkCheck(first, 403, 2);
+  assert.equal(blocked.status, "unreachable");
+  assert.equal(blocked.failures, 1);
+  const missing = applyLinkCheck(blocked, 410, 3);
+  assert.equal(missing.status, "dead");
+  assert.equal(applyLinkCheck(missing, undefined, 4).status, "dead");
+  assert.equal(applyLinkCheck(missing, 429, 5).status, "dead");
+  const recovered = applyLinkCheck(missing, 200, 6);
+  assert.equal(recovered.status, "healthy");
+  assert.equal(recovered.failures, 0);
 });
