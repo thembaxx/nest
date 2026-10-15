@@ -138,6 +138,9 @@ export function NestApp() {
       return b.createdAt - a.createdAt;
     });
   }, [active, view, topic, query, sort, aiIds]);
+  const currentCollection = view.startsWith("list:")
+    ? collections.find((list) => list.id === view.slice(5))
+    : undefined;
   const viewTitle =
     view === "favorites"
       ? "Your favorites"
@@ -390,7 +393,7 @@ export function NestApp() {
                 <Upload size={16} /> Import
               </button>
               <button className="button primary" onClick={() => setDialog("add")}>
-                <Plus size={18} /> Add bookmark
+                <Plus size={18} /> {currentCollection ? "Add links" : "Add bookmark"}
               </button>
             </div>
           </div>
@@ -660,7 +663,12 @@ export function NestApp() {
         </button>
       </nav>
       {(dialog === "add" || dialog === "import") && (
-        <AddDialog onClose={close} initial={initialLink} importMode={dialog === "import"} />
+        <AddDialog
+          onClose={close}
+          initial={initialLink}
+          importMode={dialog === "import"}
+          initialCollection={dialog === "add" ? currentCollection?.name : undefined}
+        />
       )}{" "}
       {(dialog === "settings" || dialog === "ai-settings") && (
         <SettingsDialog

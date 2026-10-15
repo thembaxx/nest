@@ -28,7 +28,7 @@ type Context = {
     bookmarks: Bookmark[],
     lists?: Library["lists"],
     options?: IngestOptions,
-  ) => { added: Bookmark[]; duplicates: number; filed: number };
+  ) => { added: Bookmark[]; duplicates: number; filed: number; moved: number };
   sync: () => Promise<void>;
 };
 const LibraryContext = createContext<Context | null>(null);

@@ -46,7 +46,7 @@ async function paste(page: Page, value: string) {
   await page.getByRole("button", { name: "Add bookmark", exact: true }).click();
   await page.getByLabel("Links or any text with links in it").fill(value);
 }
-test("bare links create a requested folder, reuse its name, and file an existing bookmark", async ({
+test("bare links create a requested folder, reuse its name, and move an existing bookmark", async ({
   page,
 }) => {
   await paste(page, 'Save example.com/one and example.org/two under "Weekend ideas"');
@@ -68,6 +68,7 @@ test("bare links create a requested folder, reuse its name, and file an existing
   await expect(page.getByText(/1 already saved/)).toBeVisible();
   await page.getByRole("button", { name: "Save bookmark", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".toast")).toHaveText("Moved 1 existing bookmark");
   await expect
     .poll(async () => (await library(page)).lists.some((list) => list.name === "Research"))
     .toBe(true);
@@ -75,7 +76,7 @@ test("bare links create a requested folder, reuse its name, and file an existing
   expect(saved.lists.filter((list) => list.name.toLowerCase() === "weekend ideas")).toHaveLength(1);
   expect(saved.bookmarks).toHaveLength(12);
   const one = saved.bookmarks.find((bookmark) => bookmark.url === "https://example.com/one")!;
-  expect(one.listIds).toHaveLength(2);
+  expect(one.listIds).toEqual([saved.lists.find((list) => list.name === "Research")!.id]);
   await page.reload();
   await page
     .getByRole("button", { name: /^Research/ })
@@ -192,4 +193,56 @@ test("all input fields stay at 16px in desktop and mobile flows", async ({ page 
   await checkFields();
   await page.getByRole("button", { name: "Sync & data", exact: true }).click();
   await checkFields();
+});
+
+test("adding links from a collection saves new links and moves existing bookmarks without copies", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Edit A place for connecting ideas" }).click();
+  await page.getByLabel("A note to your future self").fill("My collection move note");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await page.getByRole("button", { name: "Create collection", exact: true }).click();
+  await page.getByLabel("Collection name").fill("Study queue");
+  await page.getByRole("button", { name: "Create collection", exact: false }).last().click();
+  await expect(page.getByRole("heading", { name: "Study queue" })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Add links", exact: true }).click();
+  await expect(page.locator("#collection")).toHaveValue("Study queue");
+  await page.getByLabel("Links or any text with links in it").fill("are.na\nexample.com/new-link");
+  await expect(page.getByText("Existing links move out", { exact: false })).toBeVisible();
+  const metadataUrls: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().endsWith("/api/metadata")) metadataUrls.push(request.postDataJSON().url);
+  });
+  await page.getByRole("button", { name: "Save 2 bookmarks" }).click();
+  await expect(page.locator(".bookmark-card")).toHaveCount(2);
+  await expect.poll(async () => (await library(page)).bookmarks.length).toBe(10);
+  let saved = await library(page);
+  const target = saved.lists.find((list) => list.name === "Study queue")!;
+  const original = saved.bookmarks.find((bookmark) => bookmark.id === "s1")!;
+  expect(original.listIds).toEqual([target.id]);
+  expect(original.note).toBe("My collection move note");
+  expect(original.favorite).toBe(true);
+  expect(original.tags).toEqual(["creativity", "community"]);
+  expect(original.demo).toBe(false);
+  expect(metadataUrls).toEqual(["https://example.com/new-link"]);
+  await page.reload();
+  await expect(page.locator(".bookmark-card")).toHaveCount(10);
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  await page
+    .getByRole("button", { name: /^Study queue/ })
+    .first()
+    .click();
+  await expect(page.locator(".bookmark-card")).toHaveCount(2);
+  await page
+    .locator(".mobile-bottom-nav")
+    .getByRole("button", { name: "Add bookmark", exact: true })
+    .click();
+  await expect(page.locator("#collection")).toHaveValue("Study queue");
+  await page.getByLabel("Links or any text with links in it").fill("are.na");
+  await page.getByRole("button", { name: "Save bookmark", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  saved = await library(page);
+  expect(saved.bookmarks).toHaveLength(10);
+  expect(saved.bookmarks.find((bookmark) => bookmark.id === "s1")!.listIds).toEqual([target.id]);
 });

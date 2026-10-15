@@ -2,7 +2,11 @@ import { canonicalUrl, classify } from "./bookmarks";
 import { cleanFolderName, folderKey } from "./paste";
 import type { Bookmark, BookmarkList, Library, Topic } from "./types";
 
-export type IngestOptions = { autoOrganize?: boolean; folders?: Record<string, string> };
+export type IngestOptions = {
+  autoOrganize?: boolean;
+  folders?: Record<string, string>;
+  moveExisting?: boolean;
+};
 const topicFolders: Partial<Record<Topic, { color: string; names: string[] }>> = {
   Design: { color: "lilac", names: ["Design", "Design things", "Design resources"] },
   Development: { color: "blue", names: ["Development", "A better web", "Code", "Programming"] },
@@ -49,6 +53,9 @@ export function ingestBookmarks(
       .filter((bookmark) => !bookmark.deletedAt)
       .map((bookmark) => [canonicalUrl(bookmark.url), bookmark.id]),
   );
+  const originalIds = new Set(keys.values());
+  const movedDestinations = new Map<string, Set<string>>();
+  const movedIds = new Set<string>();
   const addedIds: string[] = [];
   const filedIds = new Set<string>();
   let duplicates = 0;
@@ -71,11 +78,26 @@ export function ingestBookmarks(
     if (existingId) {
       duplicates++;
       const old = records.get(existingId)!;
-      const listIds = [...new Set([...old.listIds, ...destinations])];
-      if (listIds.length !== old.listIds.length) {
+      const moving =
+        !!options.moveExisting && originalIds.has(existingId) && destinations.length > 0;
+      const requested = new Set([
+        ...(moving ? movedDestinations.get(existingId) || [] : old.listIds),
+        ...destinations,
+      ]);
+      if (moving) movedDestinations.set(existingId, requested);
+      const listIds = [...requested];
+      const changed =
+        listIds.length !== old.listIds.length || listIds.some((id) => !old.listIds.includes(id));
+      if (changed || (moving && (old.archived || old.demo))) {
         if (listIds.length > 50) throw Error("A bookmark can belong to up to 50 folders.");
-        records.set(existingId, { ...old, listIds, updatedAt: now });
+        records.set(existingId, {
+          ...old,
+          listIds,
+          ...(moving ? { archived: false, demo: false } : {}),
+          updatedAt: now,
+        });
         filedIds.add(existingId);
+        if (moving) movedIds.add(existingId);
       }
       continue;
     }
@@ -112,5 +134,5 @@ export function ingestBookmarks(
     bookmarks: [...added, ...library.bookmarks.map((bookmark) => records.get(bookmark.id)!)],
     lists,
   };
-  return { library: result, added, duplicates, filed: filedIds.size };
+  return { library: result, added, duplicates, filed: filedIds.size, moved: movedIds.size };
 }

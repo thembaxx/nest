@@ -21,10 +21,12 @@ export function AddDialog({
   onClose,
   initial = "",
   importMode = false,
+  initialCollection = "",
 }: {
   onClose: () => void;
   initial?: string;
   importMode?: boolean;
+  initialCollection?: string;
 }) {
   const { add, library, settings, toast, setSettings } = useLibrary();
   const [text, setText] = useState(initial);
@@ -38,7 +40,13 @@ export function AddDialog({
   const inferredFolders = [
     ...new Set(entries.map((entry) => entry.folderName).filter((name): name is string => !!name)),
   ];
-  const folderValue = folderOverride ?? (inferredFolders.length === 1 ? inferredFolders[0] : "");
+  const folderValue =
+    folderOverride ??
+    (inferredFolders.length === 1
+      ? inferredFolders[0]
+      : inferredFolders.length
+        ? ""
+        : initialCollection);
   const activeLists = library.lists.filter((list) => !list.deletedAt);
   const existing = new Map(
     library.bookmarks
@@ -47,14 +55,21 @@ export function AddDialog({
   );
   const duplicateCount = urls.filter((url) => existing.has(canonicalUrl(url))).length;
   function destination(entry: (typeof entries)[number]) {
-    return folderOverride !== null ? cleanFolderName(folderOverride) : entry.folderName;
+    return folderOverride !== null
+      ? cleanFolderName(folderOverride)
+      : entry.folderName || initialCollection;
   }
   function announce(
-    result: { added: Bookmark[]; duplicates: number; filed: number },
+    result: { added: Bookmark[]; duplicates: number; filed: number; moved: number },
     importing = false,
   ) {
+    const summary = result.added.length
+      ? `${importing ? "Imported" : "Saved"} ${result.added.length} new bookmark${result.added.length === 1 ? "" : "s"}`
+      : result.moved
+        ? `Moved ${result.moved} existing bookmark${result.moved === 1 ? "" : "s"}`
+        : `${result.duplicates} bookmark${result.duplicates === 1 ? "" : "s"} already saved`;
     toast(
-      `${importing ? "Imported " : "Saved "}${result.added.length} bookmark${result.added.length === 1 ? "" : "s"}${result.duplicates ? ` · ${result.duplicates} already saved` : ""}${result.filed ? ` · ${result.filed} filed in folders` : ""}`,
+      `${summary}${result.added.length && result.moved ? ` · ${result.moved} moved` : result.filed && !result.moved ? ` · ${result.filed} filed in folders` : ""}`,
     );
     setSettings({ onboarded: true });
     if (result.added.length && settings.effects) void celebrate();
@@ -112,7 +127,9 @@ export function AddDialog({
         if (folder) folders[bookmark.id] = folder;
         return bookmarkSchema.parse(bookmark);
       });
-      announce(add(bookmarks, [], { autoOrganize: settings.autoSort, folders }));
+      announce(
+        add(bookmarks, [], { autoOrganize: settings.autoSort, folders, moveExisting: true }),
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not add these links. Please try again.");
     } finally {
@@ -141,7 +158,11 @@ export function AddDialog({
   return (
     <Modal
       title={tab === "paste" ? "Something worth keeping." : "Bring your bookmarks home."}
-      subtitle="A link, a handful, or your whole collection. We’ll take care of the sorting."
+      subtitle={
+        initialCollection && tab === "paste"
+          ? "Paste new links or move bookmarks you’ve already saved. Choose a destination below."
+          : "A link, a handful, or your whole collection. We’ll take care of the sorting."
+      }
       onClose={() => {
         if (!busy) onClose();
       }}
@@ -185,7 +206,7 @@ export function AddDialog({
                 {duplicateCount ? ` · ${duplicateCount} already saved` : ""}
               </>
             ) : (
-              "Every link gets its own bookmark. Existing links can be filed into another folder."
+              "New links are saved once. Existing links move into your chosen collection."
             )}
           </div>
           <label className="field-label" htmlFor="collection">
@@ -223,6 +244,15 @@ export function AddDialog({
               "Choose an existing folder or name a new one. Your folder instructions take priority."
             )}
           </div>
+          {!!duplicateCount &&
+            entries.some(
+              (entry) => existing.has(canonicalUrl(entry.url)) && destination(entry),
+            ) && (
+              <p className="small muted" aria-live="polite">
+                Existing links move out of their previous collections into the destinations below.
+                Notes, tags, and favorites stay with them; archived links return to your library.
+              </p>
+            )}
           {!!entries.length && (
             <div className="paste-preview" aria-label="Bookmark destinations">
               {entries.slice(0, 5).map((entry, index) => (

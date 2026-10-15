@@ -22,8 +22,9 @@ const sections = [
         <p>
           Try <strong>Save figma.com and github.com under &quot;Weekend ideas&quot;</strong>. Nest
           uses that folder or creates it when you save. Review each destination, or type another
-          folder name to override the instruction. Already-saved links gain the requested folder
-          without losing notes.
+          folder name to override the instruction. Already-saved links move out of their previous
+          collections into the requested folder without losing notes. Open a collection and choose
+          Add links to save directly into it.
         </p>
       </>
     ),

@@ -166,3 +166,95 @@ test("import preserves empty custom folders and honors existing names", () => {
   );
   assert.equal(result.library.lists[0].name, "Someday");
 });
+
+test("moving a duplicate replaces previous collections even when membership counts match", () => {
+  const original = makeBookmark("https://example.com", {
+    id: "original",
+    listIds: ["old"],
+    title: "Saved title",
+    note: "Keep my notes",
+    tags: ["personal"],
+    favorite: true,
+    read: true,
+    createdAt: 1,
+    updatedAt: 1,
+  });
+  const incoming = makeBookmark("http://www.example.com/?utm_source=paste", {
+    title: "Replacement",
+  });
+  const lists = [
+    { id: "old", name: "Old collection", color: "blue", updatedAt: 1 },
+    { id: "target", name: "Target", color: "green", updatedAt: 1 },
+  ];
+  const result = ingestBookmarks({ bookmarks: [original], lists }, [incoming], [], {
+    moveExisting: true,
+    folders: { [incoming.id]: "Target" },
+  });
+  assert.equal(result.added.length, 0);
+  assert.equal(result.moved, 1);
+  assert.equal(result.library.bookmarks.length, 1);
+  assert.deepEqual(result.library.bookmarks[0], {
+    ...original,
+    listIds: ["target"],
+    demo: false,
+    archived: false,
+    updatedAt: result.library.bookmarks[0].updatedAt,
+  });
+  assert.ok(result.library.bookmarks[0].updatedAt > original.updatedAt);
+  const unchanged = ingestBookmarks(result.library, [incoming], [], {
+    moveExisting: true,
+    folders: { [incoming.id]: "target" },
+  });
+  assert.equal(unchanged.moved, 0);
+  assert.equal(unchanged.library.bookmarks[0].updatedAt, result.library.bookmarks[0].updatedAt);
+});
+test("one paste can move an existing bookmark into several requested destinations", () => {
+  const original = makeBookmark("https://example.com", { listIds: ["previous"] });
+  const one = makeBookmark(original.url);
+  const two = makeBookmark(original.url);
+  const result = ingestBookmarks(
+    {
+      bookmarks: [original],
+      lists: [{ id: "previous", name: "Previous", color: "blue", updatedAt: 1 }],
+    },
+    [one, two],
+    [],
+    { moveExisting: true, folders: { [one.id]: "One", [two.id]: "Two" } },
+  );
+  assert.equal(result.moved, 1);
+  assert.deepEqual(
+    result.library.bookmarks[0].listIds,
+    result.library.lists.filter((list) => list.id !== "previous").map((list) => list.id),
+  );
+});
+test("moving archived and sample bookmarks makes them active personal bookmarks", () => {
+  const original = makeBookmark("https://example.com", { archived: true, demo: true });
+  const incoming = makeBookmark(original.url);
+  const result = ingestBookmarks({ bookmarks: [original], lists: [] }, [incoming], [], {
+    moveExisting: true,
+    folders: { [incoming.id]: "Mine" },
+  });
+  assert.equal(result.library.bookmarks[0].archived, false);
+  assert.equal(result.library.bookmarks[0].demo, false);
+  assert.equal(result.library.bookmarks[0].id, original.id);
+  assert.equal(result.moved, 1);
+});
+test("duplicates without a destination stay put and imports retain previous memberships", () => {
+  const original = makeBookmark("https://example.com", { listIds: ["old"] });
+  const incoming = makeBookmark(original.url, { listIds: ["imported"] });
+  const lists = [{ id: "old", name: "Old", color: "blue", updatedAt: 1 }];
+  const skipped = ingestBookmarks(
+    { bookmarks: [original], lists },
+    [makeBookmark(original.url)],
+    [],
+    { moveExisting: true },
+  );
+  assert.deepEqual(skipped.library.bookmarks[0], original);
+  const imported = ingestBookmarks(
+    { bookmarks: [original], lists },
+    [incoming],
+    [{ id: "imported", name: "Browser folder", color: "green", updatedAt: 1 }],
+  );
+  assert.deepEqual(imported.library.bookmarks[0].listIds, ["old", "imported"]);
+  assert.equal(imported.moved, 0);
+});
