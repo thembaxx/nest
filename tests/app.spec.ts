@@ -83,7 +83,7 @@ test("create a collection and edit bookmark notes, tags, and membership", async 
   await page.getByRole("button", { name: "Edit A place for connecting ideas" }).click();
   await page.getByLabel("A note to your future self").fill("Remember this for the next project");
   await page.getByLabel("Tags", { exact: false }).fill("ideas, next project");
-  await page.getByLabel("Weekend ideas").check();
+  await page.getByRole("checkbox", { name: "Weekend ideas", exact: true }).check();
   await page.getByRole("button", { name: "Save changes" }).click();
   await page
     .getByRole("button", { name: /Weekend ideas/ })

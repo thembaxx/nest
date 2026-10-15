@@ -95,7 +95,16 @@ export function mergeLibrary(a: Library, b: Library): Library {
     }
     return [...map.values()];
   }
-  return { bookmarks: merge(a.bookmarks, b.bookmarks), lists: merge(a.lists, b.lists) };
+  const personalIds = new Set(
+    [...a.bookmarks, ...b.bookmarks]
+      .filter((bookmark) => !bookmark.demo)
+      .map((bookmark) => bookmark.id),
+  );
+  const personalWins = (bookmark: Bookmark) => !bookmark.demo || !personalIds.has(bookmark.id);
+  return {
+    bookmarks: merge(a.bookmarks.filter(personalWins), b.bookmarks.filter(personalWins)),
+    lists: merge(a.lists, b.lists),
+  };
 }
 export function deduplicate(incoming: Bookmark[], existing: Bookmark[]) {
   const keys = new Set(existing.filter((b) => !b.deletedAt).map((b) => canonicalUrl(b.url)));

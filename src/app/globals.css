@@ -55,3 +55,65 @@ html body :is(input, textarea, select, [contenteditable="true"]) { font-size: 16
   .search-field input::placeholder { font-size: 16px; }
   .paste-preview { padding: 4px 10px; }
 }
+
+/* Collection shelves: paper, specimen labels, and quiet botanical forms. */
+.collections-controls { display: flex; gap: 12px; margin: 0 0 16px; }
+.collection-search { display: flex; align-items: center; gap: 9px; min-width: 0; flex: 1; padding: 0 12px; min-height: 44px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); color: var(--muted); }
+.collection-search input { width: 100%; min-width: 0; border: 0; background: transparent; outline: 0; padding: 10px 0; }
+.collection-search:focus-within { outline: 2px solid var(--green); outline-offset: 2px; }
+.collection-sort { display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); }
+.collection-sort select { border: 0; appearance: none; background: transparent; min-width: 0; padding: 10px 0; width: 176px; }
+.collection-cards { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; overflow: visible; margin: 0; padding: 0; }
+.collection-tile { position: relative; min-width: 0; }
+.collection-tile .collection-card { min-width: 0; width: 100%; height: 166px; padding: 18px 20px; border: 1px solid #ffffff70; border-radius: 24px; }
+.collection-tile .collection-card::after { content: ""; position: absolute; inset: 0; background-image: radial-gradient(#55462216 .55px,transparent .55px); background-size: 4px 4px; opacity: .45; pointer-events: none; z-index: 0; }
+.collection-manage { position: absolute; right: 12px; top: 12px; z-index: 2; color: #4a493b; border-radius: 11px; background: #ffffff45; min-width: 32px; min-height: 32px; }
+.collection-manage:hover { background: #ffffffa0; }
+.collection-tile .collection-top { justify-content: flex-start; gap: 10px; padding-right: 26px; color: #4c4a39; }
+.collection-number { font-size: 11px; font-variant-numeric: tabular-nums; letter-spacing: .08em; }
+.collection-tile .collection-card h3 { font-family: "Instrument Serif", Georgia, serif; font-size: 27px; font-weight: 400; line-height: 1.05; overflow-wrap: anywhere; letter-spacing: -.6px; max-width: 95%; }
+.collection-caption { position: relative; z-index: 1; width: 100%; }
+.collection-tile .collection-card p { display: flex; align-items: center; justify-content: space-between; color: #66634f; font-size: 11px; margin-top: 9px; }
+.collection-total, .collection-no-results { font-size: 11px; color: var(--muted); margin-top: 13px; }
+.collection-page-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 0; border-top: 1px solid var(--line); margin-bottom: 22px; }
+.collection-tools { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 25px; }
+.collection-remove { border: 1px solid var(--line); padding: 16px; border-radius: 16px; background: var(--input); margin-top: 18px; }
+.collection-remove strong { font-size: 14px; font-weight: 500; }
+.collection-remove p { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 8px 0 14px; }
+.saved-picker-toolbar { display: flex; gap: 10px; }
+.saved-picker-toolbar .button { padding: 10px; }
+.saved-picker-heading { display: flex; gap: 16px; align-items: center; margin: 18px 0 10px; color: var(--muted); font-size: 11px; }
+.saved-picker-heading > span { margin-left: auto; }
+.saved-picker-list { max-height: 380px; overflow: auto; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.saved-picker-row { display: flex; align-items: center; gap: 11px; padding: 14px; cursor: pointer; min-width: 0; }
+.saved-picker-row + .saved-picker-row { border-top: 1px solid var(--line); }
+.saved-picker-row:hover { background: var(--green-soft); }
+.saved-picker-row.already-here { opacity: .55; cursor: default; }
+.saved-picker-row input { width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--green); }
+.saved-picker-row > svg { flex-shrink: 0; color: #ad8667; }
+.saved-picker-icon { display: grid; place-items: center; width: 36px; height: 40px; flex-shrink: 0; background: var(--input); color: var(--green); border-radius: 11px; }
+.saved-picker-copy { min-width: 0; flex: 1; }
+.saved-picker-copy strong { display: block; font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.saved-picker-copy small { display: block; font-size: 10px; margin-top: 5px; color: var(--muted); overflow-wrap: anywhere; }
+.saved-picker-here { display: flex; gap: 3px; align-items: center; font-size: 10px; color: var(--muted); }
+.picker-more { margin-top: 12px; }
+@media(max-width: 1100px) { .collection-cards { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width: 700px) {
+  .collection-cards { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+  .collection-tile .collection-card { height: 158px; padding: 15px; }
+  .collection-tile .collection-card h3 { font-size: 24px; max-width: 100%; }
+  .collection-tile .collection-art { width: 100px; opacity: .35; }
+  .collection-manage { top: 8px; right: 8px; }
+  .collections-controls { flex-wrap: wrap; gap: 8px; }
+  .collection-search { flex-basis: 100%; }
+  .collection-sort { margin-left: auto; }
+  .collection-sort select { width: 176px; }
+  .collection-page-tools { align-items: flex-start; flex-wrap: wrap; }
+  .collection-page-tools .button { flex: 1; }
+  .saved-picker-toolbar { flex-wrap: wrap; }
+  .saved-picker-toolbar .collection-search { flex-basis: 100%; }
+  .saved-picker-list { max-height: 330px; }
+  .saved-picker-row { padding: 12px 10px; gap: 8px; }
+}
+@media(max-width: 360px) { .collection-cards { grid-template-columns: 1fr; } }
+.collection-create { grid-column: 1 / -1; min-width: 0; width: 100%; }

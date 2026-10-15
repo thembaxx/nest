@@ -54,6 +54,9 @@ const sections = [
     body: (
       <>
         <p>
+          Every collection appears on your dashboard. Search or sort the collection shelf, and use
+          Manage collection to rename, recolor, export, or remove a collection while keeping its
+          bookmarks. Choose Add saved bookmarks to move existing links using a searchable picker.
           Create a collection from the sidebar. Open a bookmark’s details to add it to one or more
           collections, edit its topic or tags, and leave a note for your future self.
         </p>
@@ -98,7 +101,9 @@ const sections = [
       <>
         <p>
           Choose <strong>Settings → Local AI</strong> to see available models, approximate download
-          sizes, and memory guidance. Nothing downloads automatically.
+          sizes, and memory guidance. Nothing downloads automatically. Simple commands such as “Move
+          my design bookmarks to Research” and “Archive my favorites” work without a model and show
+          a preview before applying.
         </p>
         <p>
           SmolLM2 360M is about 250 MB, Llama 3.2 1B about 880 MB, and Qwen 2.5 1.5B about 1.1 GB.

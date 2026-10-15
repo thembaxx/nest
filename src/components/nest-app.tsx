@@ -13,7 +13,6 @@ import {
   Cloud,
   CloudSlash as CloudOff,
   Command,
-  Folder,
   Heart,
   SquaresFour as LayoutGrid,
   LinkSimple as Link2,
@@ -29,6 +28,8 @@ import {
   Graph as Network,
   Leaf,
   Download,
+  SlidersHorizontal,
+  Bookmarks,
 } from "@phosphor-icons/react";
 import { useLibrary } from "./library-provider";
 import { Modal, Empty } from "./ui";
@@ -39,6 +40,10 @@ import { DetailDialog } from "./detail-dialog";
 import { OnboardingDialog } from "./onboarding-dialog";
 import { AssistantDialog } from "./assistant-dialog";
 import { topics, type View } from "@/lib/types";
+import { CollectionsSection } from "./collections-section";
+import { CollectionDialog } from "./collection-dialog";
+import { SavedBookmarksDialog } from "./saved-bookmarks-dialog";
+import { folderKey } from "@/lib/paste";
 import { searchScore } from "@/lib/bookmarks";
 const ConnectionsDialog = dynamic(
   () => import("./connections-dialog").then((m) => m.ConnectionsDialog),
@@ -63,11 +68,13 @@ export function NestApp() {
     | "welcome"
     | "assistant"
     | "collection"
+    | "saved"
     | "connections"
     | "install"
     | null
   >(null);
   const [detail, setDetail] = useState<string | null>(null);
+  const [managedCollection, setManagedCollection] = useState<string | null>(null);
   const [mobile, setMobile] = useState(false);
   const [initialLink, setInitialLink] = useState("");
   const [newName, setNewName] = useState("");
@@ -170,7 +177,7 @@ export function NestApp() {
   };
   function createCollection() {
     if (!newName.trim()) return;
-    if (collections.some((l) => l.name.toLowerCase() === newName.trim().toLowerCase())) {
+    if (collections.some((l) => folderKey(l.name) === folderKey(newName))) {
       toast("That collection is already at home here.");
       return;
     }
@@ -398,61 +405,34 @@ export function NestApp() {
             </div>
           </div>
           {view === "all" && !query && (
-            <section className="collections-section" aria-label="Your collections">
-              <div className="section-title">
-                <h2>
-                  Your collections <span>{collections.length}</span>
-                </h2>
-                <button className="text-button" onClick={() => setDialog("collection")}>
-                  New collection <Plus size={14} />
-                </button>
-              </div>
-              <div className="collection-cards">
-                {collections.slice(0, 3).map((l, i) => (
-                  <button
-                    key={l.id}
-                    className={`collection-card collection-${l.color}`}
-                    onClick={() => navigate(`list:${l.id}`)}
-                  >
-                    <div className={`collection-art collection-art-${i % 3}`} aria-hidden="true">
-                      <span />
-                      <span />
-                      <span />
-                    </div>
-                    <span className="collection-top">
-                      <Folder size={18} weight="regular" />
-                      <ArrowUpRight size={17} />
-                    </span>
-                    <div>
-                      <h3>{l.name}</h3>
-                      <p>
-                        {active.filter((b) => b.listIds.includes(l.id) && !b.archived).length}{" "}
-                        bookmarks{" "}
-                        <span>
-                          ·{" "}
-                          {i === 0
-                            ? "A little visual joy"
-                            : i === 1
-                              ? "Made for the curious"
-                              : "Room to slow down"}
-                        </span>
-                      </p>
-                    </div>
-                  </button>
-                ))}
-                {collections.length === 0 && (
-                  <button
-                    className="collection-card collection-create"
-                    onClick={() => setDialog("collection")}
-                  >
-                    <Plus size={25} />
-                    <h3>A place for your next rabbit hole</h3>
-                    <p>Create your first collection</p>
-                  </button>
-                )}
-              </div>
-            </section>
+            <CollectionsSection
+              collections={collections}
+              bookmarks={active}
+              onOpen={(id) => navigate(`list:${id}`)}
+              onManage={setManagedCollection}
+              onCreate={() => setDialog("collection")}
+            />
           )}
+          {currentCollection && (
+            <div className="collection-page-tools">
+              <button
+                className="button secondary"
+                onClick={() => {
+                  navigate(view);
+                  setDialog("saved");
+                }}
+              >
+                <Bookmarks size={17} /> Add saved bookmarks
+              </button>
+              <button
+                className="text-button"
+                onClick={() => setManagedCollection(currentCollection.id)}
+              >
+                <SlidersHorizontal size={17} /> Manage collection
+              </button>
+            </div>
+          )}
+
           <section className="library-section" aria-labelledby="library-heading">
             <div className="section-title library-title">
               <h2 id="library-heading">
@@ -670,6 +650,25 @@ export function NestApp() {
           initialCollection={dialog === "add" ? currentCollection?.name : undefined}
         />
       )}{" "}
+      {dialog === "saved" && currentCollection && (
+        <SavedBookmarksDialog collectionId={currentCollection.id} onClose={close} />
+      )}
+      {managedCollection && collections.some((list) => list.id === managedCollection) && (
+        <CollectionDialog
+          key={managedCollection}
+          id={managedCollection}
+          onClose={() => setManagedCollection(null)}
+          onRemoved={() => {
+            setManagedCollection(null);
+            navigate("all");
+          }}
+          onAddSaved={() => {
+            navigate(`list:${managedCollection}`);
+            setManagedCollection(null);
+            setDialog("saved");
+          }}
+        />
+      )}
       {(dialog === "settings" || dialog === "ai-settings") && (
         <SettingsDialog
           initialTab={dialog === "ai-settings" ? "ai" : "general"}

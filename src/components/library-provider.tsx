@@ -8,10 +8,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { defaultSettings, type Bookmark, type Library, type Settings } from "@/lib/types";
+import {
+  librarySchema,
+  defaultSettings,
+  type Bookmark,
+  type Library,
+  type Settings,
+} from "@/lib/types";
 import { seed } from "@/lib/seed";
 import { mergeLibrary } from "@/lib/bookmarks";
 import { ingestBookmarks, type IngestOptions } from "@/lib/organize";
+import { prepareSyncLibrary } from "@/lib/sync";
 import { readLibrary, writeLibrary } from "@/lib/storage";
 type SyncState = "local" | "syncing" | "synced" | "offline" | "error" | "unconfigured";
 type Context = {
@@ -128,29 +135,31 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     syncing.current = true;
     setSyncState("syncing");
     try {
+      const outgoing = prepareSyncLibrary(current.current);
       const r = await fetch("/api/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
         body: JSON.stringify({
-          bookmarks: current.current.bookmarks.filter((b) => !b.demo),
-          lists: current.current.lists,
+          bookmarks: outgoing.bookmarks.filter((b) => !b.demo),
+          lists: outgoing.lists,
           healthChecks: settingsRef.current.healthChecks,
         }),
         signal: AbortSignal.timeout(20000),
       });
+      if (settingsRef.current.syncKey !== key) return;
       if (r.status === 503) {
         setSyncState("unconfigured");
         return;
       }
       if (!r.ok) throw Error("Sync failed");
-      const incoming = (await r.json()) as Library;
+      const incoming = librarySchema.parse(await r.json());
       setLibrary((local) => {
-        const merged = mergeLibrary(local, incoming);
+        const merged = mergeLibrary(prepareSyncLibrary(local), incoming);
         return JSON.stringify(merged) === JSON.stringify(local) ? local : merged;
       });
       setSyncState("synced");
     } catch {
-      setSyncState(navigator.onLine ? "error" : "offline");
+      if (settingsRef.current.syncKey === key) setSyncState(navigator.onLine ? "error" : "offline");
     } finally {
       syncing.current = false;
     }

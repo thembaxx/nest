@@ -2,9 +2,9 @@ import type { Library } from "./types";
 const time = Date.now();
 export const seed: Library = {
   lists: [
-    { id: "design", name: "Design things", color: "lilac", updatedAt: time },
-    { id: "web", name: "A better web", color: "blue", updatedAt: time },
-    { id: "slow", name: "Slow living", color: "green", updatedAt: time },
+    { id: "design", name: "Design things", color: "lilac", updatedAt: 0 },
+    { id: "web", name: "A better web", color: "blue", updatedAt: 0 },
+    { id: "slow", name: "Slow living", color: "green", updatedAt: 0 },
   ],
   bookmarks: [
     {

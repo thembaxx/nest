@@ -32,13 +32,13 @@ export async function POST(request: Request) {
         .map((data) => ({
           id: data.id,
           kind: "bookmark",
-          data,
+          data: { ...data, updatedAt: Math.min(data.updatedAt, now) },
           updated_at: Math.min(data.updatedAt, now),
         })),
       ...parsed.data.lists.map((data) => ({
         id: data.id,
         kind: "list",
-        data,
+        data: { ...data, updatedAt: Math.min(data.updatedAt, now) },
         updated_at: Math.min(data.updatedAt, now),
       })),
     ];

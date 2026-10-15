@@ -20,7 +20,7 @@ Nest is an installable web app that saves a bookmark library on the user's devic
 - Extract links from pasted text, including bare domains without https://; fetch page titles and descriptions when available.
 - Import browser HTML and supported JSON bookmark files; browser folders become collections.
 - Skip duplicate canonical URLs, including common tracking-parameter variants.
-- Assign topics and matching collections automatically unless a destination is chosen; search saved metadata; filter, sort, favorite, mark read, archive, annotate, and restore trashed bookmarks.
+- Display all collections with search and sorting; rename, recolor, export, and remove collections while keeping their bookmarks. Move saved bookmarks using a searchable picker. Assign topics and matching collections automatically unless a destination is chosen; search saved metadata; filter, sort, favorite, mark read, archive, annotate, and restore trashed bookmarks.
 - Browse the saved library offline after the app and its assets have loaded. Destination pages are not downloaded.
 - Optionally download SmolLM2 360M, Llama 3.2 1B, or Qwen 2.5 1.5B. Download sizes and memory guidance appear in Settings.
 - Use optional local AI for finding links and proposing favorite, read, archive, or collection changes. The user previews changes before applying them.
@@ -45,11 +45,11 @@ Duplicate detection compares normalized URL keys, removes common tracking parame
 
 Core search matches saved titles, descriptions, URLs, topics, tags, and notes, with a small synonym vocabulary. Topic filters, collection filters, newest/oldest/title sorting, favorites, read-later, and archive are available without a model. The optional connection view uses Three.js to show bookmarks grouped by topic, with an accessible list fallback.
 
-Open a bookmark's details to edit its title, topic, tags, notes, and collection membership. List view supports swipe gestures for read and favorite actions. Deleted items can be restored in Settings. JSON export preserves active bookmarks' Nest metadata and collections. HTML export is flat and portable to browsers. Samples and trash are omitted from exports.
+Every collection appears on the dashboard, with collection search and name/count/recent sorting. Use Manage collection to rename or recolor it, export its contents as JSON, or remove just the collection while retaining its bookmarks. Add saved bookmarks opens a searchable picker with multi-selection and favorites. Open a bookmark's details to edit its title, topic, tags, notes, and collection membership. List view supports swipe gestures for read and favorite actions. Deleted items can be restored in Settings. JSON export preserves active bookmarks' Nest metadata and collections. HTML export is flat and portable to browsers. Samples and trash are omitted from exports.
 
 ## Optional local AI
 
-Choose a model in Settings > Local AI. Approximate downloads: SmolLM2 360M ~250 MB; Llama 3.2 1B ~880 MB; Qwen 2.5 1.5B ~1.1 GB. Recommended memory starts at roughly 1 GB, 2 GB, and 3 GB respectively, but actual availability depends on the browser and GPU. Downloads are optional; nothing downloads automatically on first visit.
+Simple local commands such as Move my design bookmarks to "Research", Archive my favorites, and Mark all unread bookmarks as read work without downloading a model. All changes are previewed before the user applies them. Moves replace previous collection memberships and preserve bookmark details. The optional model additionally sees relevant collection names, URLs, notes, and favorite/read/archive states. Choose a model in Settings > Local AI. Approximate downloads: SmolLM2 360M ~250 MB; Llama 3.2 1B ~880 MB; Qwen 2.5 1.5B ~1.1 GB. Recommended memory starts at roughly 1 GB, 2 GB, and 3 GB respectively, but actual availability depends on the browser and GPU. Downloads are optional; nothing downloads automatically on first visit.
 
 WebLLM runs model inference in a Web Worker using WebGPU. Model assets are obtained from external model hosts and cached in browser storage. Bookmark content is processed on the device and is not sent to a hosted AI model. Basic local retrieval selects up to 24 relevant candidates within a bounded model context. Results can be incomplete or inaccurate.
 

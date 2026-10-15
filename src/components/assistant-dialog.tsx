@@ -11,7 +11,7 @@ import {
 import { Modal, NestMark } from "./ui";
 import { useLibrary } from "./library-provider";
 import { askModel, modelIsLoaded, loadModel, models, type AIPlan } from "@/lib/ai";
-import { folderKey, cleanFolderName } from "@/lib/paste";
+import { planLocalCommand, applyPlan } from "@/lib/commands";
 import { searchScore, extractUrls } from "@/lib/bookmarks";
 export function AssistantDialog({
   onClose,
@@ -43,6 +43,11 @@ export function AssistantDialog({
     setPrompt(text);
     setError("");
     setPlan(null);
+    const localPlan = planLocalCommand(text, library);
+    if (localPlan) {
+      setPlan(localPlan);
+      return;
+    }
     if (!settings.model) {
       onSearch(text);
       onClose();
@@ -50,14 +55,14 @@ export function AssistantDialog({
     }
     setBusy(true);
     try {
-      if (!modelIsLoaded()) {
+      if (!modelIsLoaded(settings.model)) {
         setStatus("Waking up your local companion…");
         await loadModel(settings.model, (p) =>
           setStatus(`Loading local model · ${Math.round(p * 100)}%`),
         );
       }
       setStatus("Connecting the dots…");
-      const p = await askModel(text, library.bookmarks);
+      const p = await askModel(text, library);
       setPlan(p);
       if (p.action === "search") {
         onSearch(text, p.ids);
@@ -70,44 +75,16 @@ export function AssistantDialog({
   }
   function apply() {
     if (!plan) return;
-    const now = Date.now();
-    setLibrary((s) => {
-      let listId: string | undefined;
-      let lists = s.lists;
-      if (plan.action === "move") {
-        const name = plan.listName ? cleanFolderName(plan.listName) : "";
-        if (!name) {
-          toast("Please name the collection in your instruction.");
-          return s;
-        }
-        const list = lists.find((l) => folderKey(l.name) === folderKey(name) && !l.deletedAt);
-        listId = list?.id || crypto.randomUUID();
-        if (!list) lists = [...lists, { id: listId, name, color: "lilac", updatedAt: now }];
-      }
-      return {
-        lists,
-        bookmarks: s.bookmarks.map((b) =>
-          plan.ids.includes(b.id)
-            ? {
-                ...b,
-                ...(plan.action === "favorite"
-                  ? { favorite: true }
-                  : plan.action === "archive"
-                    ? { archived: true }
-                    : plan.action === "read"
-                      ? { read: true }
-                      : plan.action === "move"
-                        ? { listIds: [...new Set([...b.listIds, listId!])] }
-                        : {}),
-                updatedAt: now,
-              }
-            : b,
-        ),
-      };
-    });
-    toast(`${plan.ids.length} bookmark${plan.ids.length === 1 ? "" : "s"} updated.`);
-    onClose();
+    try {
+      const updated = applyPlan(library, plan);
+      setLibrary(updated);
+      toast(`${plan.ids.length} bookmark${plan.ids.length === 1 ? "" : "s"} updated.`);
+      onClose();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not apply this instruction.");
+    }
   }
+
   return (
     <Modal
       title="A little help finding things."
@@ -134,8 +111,8 @@ export function AssistantDialog({
           <div>
             <strong>Make room for a clever little companion.</strong>
             <p>
-              Basic keyword and topic search works now. Download an optional local model for richer
-              natural-language search and instructions.
+              Keyword search and simple instructions work now: move, favorite, archive, or mark
+              links read. Download an optional local model for more nuanced requests.
             </p>
             <button className="text-button" onClick={onSettings}>
               Explore local AI <ArrowUpRight size={14} />
@@ -147,7 +124,7 @@ export function AssistantDialog({
         {[
           "Find something about accessible web design",
           "Show my gardening bookmarks",
-          'Save figma.com under "Design things"',
+          'Move my design bookmarks to "Project ideas"',
         ].map((s) => (
           <button key={s} onClick={() => void ask(s)} disabled={busy}>
             {s}
@@ -222,7 +199,7 @@ export function AssistantDialog({
           ? `${models.find((m) => m.id === settings.model)?.name} · Runs on this device`
           : "Your curiosity stays yours."}
       </p>
-      {!settings.model && prompt && (
+      {!settings.model && prompt && !plan && (
         <span className="sr-only">
           {library.bookmarks.filter((b) => searchScore(b, prompt) > 0).length} basic search matches
         </span>
