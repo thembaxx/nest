@@ -56,9 +56,11 @@ const sections = [
         <p>
           Every collection appears on your dashboard. Search or sort the collection shelf, and use
           Manage collection to rename, recolor, export, or remove a collection while keeping its
-          bookmarks. Choose Add saved bookmarks to move existing links using a searchable picker.
-          Create a collection from the sidebar. Open a bookmark’s details to add it to one or more
-          collections, edit its topic or tags, and leave a note for your future self.
+          bookmarks. The options button beside each sidebar collection opens the same tools. Choose
+          Add saved bookmarks to move existing links using a searchable picker. Create a collection
+          from the sidebar. Inside a collection, use a bookmark’s folder-minus button to remove only
+          its membership; the link stays in your library. Open Edit bookmark to rename a link,
+          change its collections, topic or tags, and leave a note for your future self.
         </p>
         <p>
           With automatic organization on, new links without a chosen folder get a topic and a

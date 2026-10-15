@@ -36,8 +36,8 @@ export function CollectionDialog({
   }
   return (
     <Modal
-      title="A little room of your own."
-      subtitle={`${bookmarks.length} saved links. Make this collection yours.`}
+      title="Edit collection"
+      subtitle={`${bookmarks.length} saved links. Rename, recolor, or remove the collection while keeping its bookmarks.`}
       onClose={onClose}
     >
       <form

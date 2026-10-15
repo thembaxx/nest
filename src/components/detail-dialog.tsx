@@ -8,11 +8,20 @@ import {
   Trash as Trash2,
   ArrowCounterClockwise as RotateCcw,
   Check,
+  FolderMinus,
 } from "@phosphor-icons/react";
 import { Modal } from "./ui";
 import { useLibrary } from "./library-provider";
 import { topics, type Bookmark } from "@/lib/types";
-export function DetailDialog({ bookmarkId, onClose }: { bookmarkId: string; onClose: () => void }) {
+export function DetailDialog({
+  bookmarkId,
+  collectionId,
+  onClose,
+}: {
+  bookmarkId: string;
+  collectionId?: string;
+  onClose: () => void;
+}) {
   const { library, update, toast } = useLibrary();
   const b = library.bookmarks.find((b) => b.id === bookmarkId)!;
   const [title, setTitle] = useState(b.title);
@@ -36,7 +45,11 @@ export function DetailDialog({ bookmarkId, onClose }: { bookmarkId: string; onCl
     onClose();
   }
   return (
-    <Modal title="A closer look." onClose={onClose}>
+    <Modal
+      title="Edit bookmark"
+      subtitle="Rename it, organize it, or move it to trash. Removed links can be restored in Settings."
+      onClose={onClose}
+    >
       <div className={`detail-cover art-${b.art || "default"}`}>
         {b.art ? <img src={`/art/${b.art}.svg`} alt="" /> : <span>{new URL(b.url).hostname}</span>}
       </div>
@@ -131,6 +144,18 @@ export function DetailDialog({ bookmarkId, onClose }: { bookmarkId: string; onCl
           {b.archived ? "Restore" : "Archive"}
         </button>
       </div>
+      {collectionId && b.listIds.includes(collectionId) && (
+        <button
+          className="text-button collection-unlink"
+          onClick={() => {
+            update(b.id, { listIds: b.listIds.filter((id) => id !== collectionId) });
+            toast("Removed from this collection. The bookmark is still in your library.");
+            onClose();
+          }}
+        >
+          <FolderMinus size={16} /> Remove from this collection
+        </button>
+      )}
       {b.lastChecked && (
         <p className="small muted">
           Link checked {new Date(b.lastChecked).toLocaleDateString()} ·{" "}

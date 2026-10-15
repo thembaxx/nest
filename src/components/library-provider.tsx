@@ -106,16 +106,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       settings.theme === "dark" ||
       (settings.theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.dataset.theme = dark ? "dark" : "light";
-    document
-      .querySelectorAll('meta[name="theme-color"]')
-      .forEach((meta) => meta.setAttribute("content", dark ? "#1b211d" : "#f7f6f2"));
+
     const media = matchMedia("(prefers-color-scheme: dark)");
     const change = () => {
       if (settings.theme === "system") {
         document.documentElement.dataset.theme = media.matches ? "dark" : "light";
-        document
-          .querySelectorAll('meta[name="theme-color"]')
-          .forEach((meta) => meta.setAttribute("content", media.matches ? "#1b211d" : "#f7f6f2"));
       }
     };
     media.addEventListener("change", change);
@@ -186,7 +181,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       setLibrary((s) => ({
         ...s,
         bookmarks: s.bookmarks.map((b) =>
-          b.id === id ? { ...b, ...changes, updatedAt: Date.now() } : b,
+          b.id === id
+            ? { ...b, ...changes, demo: false, updatedAt: Math.max(Date.now(), b.updatedAt + 1) }
+            : b,
         ),
       })),
     [],

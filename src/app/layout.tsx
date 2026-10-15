@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { absoluteUrl, brand, isPreview, siteUrl } from "@/lib/brand";
+import { PageEdges } from "@/components/page-edges";
+import { pagePalettes, pagePaletteCSS, initialThemeScript } from "@/lib/page-palette";
 import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -58,17 +60,17 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f6f2" },
-    { media: "(prefers-color-scheme: dark)", color: "#1b211d" },
+    { media: "(prefers-color-scheme: light)", color: pagePalettes.light.page },
+    { media: "(prefers-color-scheme: dark)", color: pagePalettes.dark.page },
   ],
   colorScheme: "light dark",
 };
-const themeScript = `try{var s=JSON.parse(localStorage.getItem('nest-settings')||'{}');var d=s.theme==='dark'||(s.theme!=='light'&&matchMedia('(prefers-color-scheme:dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=d?'#1b211d':'#f7f6f2'})}catch(e){}`;
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <style dangerouslySetInnerHTML={{ __html: pagePaletteCSS }} />
+        <script dangerouslySetInnerHTML={{ __html: initialThemeScript }} />
         <link
           rel="alternate"
           type="text/plain"
@@ -77,6 +79,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
+        <PageEdges />
         <a href="#main-content" className="skip-link">
           Skip to content
         </a>

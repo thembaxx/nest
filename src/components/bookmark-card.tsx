@@ -6,21 +6,24 @@ import {
   DotsThree as MoreHorizontal,
   SquaresFour,
   Check,
+  FolderMinus,
 } from "@phosphor-icons/react";
-import type { Bookmark } from "@/lib/types";
+import type { Bookmark, BookmarkList } from "@/lib/types";
 import { useLibrary } from "./library-provider";
 export function BookmarkCard({
   bookmark: b,
   onOpen,
   list = false,
   index = 0,
+  collection,
 }: {
   bookmark: Bookmark;
   onOpen: () => void;
   list?: boolean;
   index?: number;
+  collection?: BookmarkList;
 }) {
-  const { update } = useLibrary();
+  const { update, toast } = useLibrary();
   const reduced = useReducedMotion();
   const host = new URL(b.url).hostname.replace(/^www\./, "");
   return (
@@ -85,9 +88,29 @@ export function BookmarkCard({
           >
             {b.topic}
           </button>
-          <button className="card-more" onClick={onOpen} aria-label={`Edit ${b.title}`}>
-            <MoreHorizontal size={19} />
-          </button>
+          <span className="card-actions">
+            {collection && (
+              <button
+                className="card-more"
+                title="Remove from this collection; keep in library"
+                aria-label={`Remove ${b.title} from ${collection.name}`}
+                onClick={() => {
+                  update(b.id, { listIds: b.listIds.filter((id) => id !== collection.id) });
+                  toast("Removed from this collection. The bookmark is still in your library.");
+                }}
+              >
+                <FolderMinus size={18} />
+              </button>
+            )}
+            <button
+              className="card-more"
+              onClick={onOpen}
+              aria-label={`Edit ${b.title}`}
+              title="Rename, organize, or move to trash"
+            >
+              <MoreHorizontal size={19} />
+            </button>
+          </span>
         </footer>
       </div>
     </motion.article>

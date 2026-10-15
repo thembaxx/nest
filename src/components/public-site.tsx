@@ -4,7 +4,7 @@ import { ArrowUpRight } from "@phosphor-icons/react/ssr";
 import "./public-site.css";
 export function PublicSite({ children, active }: { children: ReactNode; active?: string }) {
   return (
-    <div className="public-layout">
+    <div className="public-layout" data-edge-background="page">
       <header className="public-header">
         <Link href="/about" className="public-wordmark" aria-label="Nest — about">
           <img
@@ -34,7 +34,7 @@ export function PublicSite({ children, active }: { children: ReactNode; active?:
         </Link>
       </header>
       <main id="main-content">{children}</main>
-      <footer className="public-footer">
+      <footer className="public-footer" data-edge-background="surface">
         <div>
           <span className="public-footer-name">
             nest<span>.</span>

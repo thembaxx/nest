@@ -29,6 +29,7 @@ import {
   Leaf,
   Download,
   SlidersHorizontal,
+  DotsThree,
   Bookmarks,
 } from "@phosphor-icons/react";
 import { useLibrary } from "./library-provider";
@@ -215,7 +216,7 @@ export function NestApp() {
       </main>
     );
   return (
-    <div className={`app-shell ${mobile ? "menu-open" : ""}`}>
+    <div className={`app-shell ${mobile ? "menu-open" : ""}`} data-edge-background="page">
       {mobile && (
         <button
           className="sidebar-scrim"
@@ -223,7 +224,7 @@ export function NestApp() {
           onClick={() => setMobile(false)}
         />
       )}
-      <aside className="sidebar">
+      <aside className="sidebar" data-edge-background="sidebar">
         <a
           className="brand"
           href="/"
@@ -287,17 +288,29 @@ export function NestApp() {
         </div>
         <nav className="collection-nav" aria-label="Collections">
           {collections.map((l) => (
-            <button
-              key={l.id}
-              className={view === `list:${l.id}` ? "active" : ""}
-              onClick={() => navigate(`list:${l.id}`)}
-            >
-              <span className={`color-dot ${l.color}`} />
-              <span>{l.name}</span>
-              <span className="nav-count">
-                {active.filter((b) => b.listIds.includes(l.id) && !b.archived).length}
-              </span>
-            </button>
+            <div key={l.id} className="collection-nav-row">
+              <button
+                className={view === `list:${l.id}` ? "active" : ""}
+                onClick={() => navigate(`list:${l.id}`)}
+              >
+                <span className={`color-dot ${l.color}`} />
+                <span>{l.name}</span>
+                <span className="nav-count">
+                  {active.filter((b) => b.listIds.includes(l.id) && !b.archived).length}
+                </span>
+              </button>
+              <button
+                className="icon-button collection-nav-options"
+                aria-label={`Collection options for ${l.name}`}
+                title="Rename, recolor, export, or remove collection"
+                onClick={() => {
+                  setMobile(false);
+                  setManagedCollection(l.id);
+                }}
+              >
+                <DotsThree size={17} />
+              </button>
+            </div>
           ))}
           <button className="new-collection" onClick={() => setDialog("collection")}>
             <Plus size={14} /> New collection
@@ -553,6 +566,7 @@ export function NestApp() {
                   <BookmarkCard
                     key={b.id}
                     bookmark={b}
+                    collection={currentCollection}
                     onOpen={() => setDetail(b.id)}
                     list={layout === "list"}
                     index={i}
@@ -618,7 +632,7 @@ export function NestApp() {
           </footer>
         </main>
       </div>
-      <nav className="mobile-bottom-nav" aria-label="Quick navigation">
+      <nav className="mobile-bottom-nav" aria-label="Quick navigation" data-edge-background="page">
         <button onClick={() => navigate("all")} className={view === "all" ? "active" : ""}>
           <Bookmark size={20} />
           <span>Library</span>
@@ -700,7 +714,13 @@ export function NestApp() {
           }}
         />
       )}{" "}
-      {detail && <DetailDialog bookmarkId={detail} onClose={() => setDetail(null)} />}{" "}
+      {detail && (
+        <DetailDialog
+          bookmarkId={detail}
+          collectionId={currentCollection?.id}
+          onClose={() => setDetail(null)}
+        />
+      )}{" "}
       {dialog === "connections" && (
         <ConnectionsDialog bookmarks={filtered} onClose={close} onOpen={openDetail} />
       )}

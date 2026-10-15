@@ -1,3 +1,4 @@
+import { pagePalettes } from "@/lib/page-palette";
 import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -9,8 +10,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "any",
-    background_color: "#f7f6f2",
-    theme_color: "#f7f6f2",
+    background_color: pagePalettes.light.page,
+    theme_color: pagePalettes.light.page,
     categories: ["productivity", "utilities"],
     icons: [
       { src: "/icons/icon-192.png?v=2", sizes: "192x192", type: "image/png", purpose: "any" },
