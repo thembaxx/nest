@@ -5,17 +5,17 @@ import {
   Copy,
   Download,
   Check,
-  LoaderCircle,
-  Monitor,
+  CircleNotch as LoaderCircle,
+  Desktop as Monitor,
   Sun,
   Moon,
-  Trash2,
-  RefreshCw,
+  Trash as Trash2,
+  ArrowsClockwise as RefreshCw,
   Shield,
   ArrowUpRight,
-  RotateCcw,
-  Smartphone,
-} from "lucide-react";
+  ArrowCounterClockwise as RotateCcw,
+  DeviceMobile as Smartphone,
+} from "@phosphor-icons/react";
 import { Modal } from "./ui";
 import { useLibrary } from "./library-provider";
 import { models, loadModel, removeModel } from "@/lib/ai";
@@ -155,7 +155,7 @@ export function SettingsDialog({
           </div>
           <Toggle
             title="A little automatic organization"
-            description="Suggest a topic as soon as a bookmark arrives."
+            description="Find topics and file new bookmarks into matching folders. Your chosen folders come first."
             value={settings.autoSort}
             onChange={(v) => setSettings({ autoSort: v })}
           />

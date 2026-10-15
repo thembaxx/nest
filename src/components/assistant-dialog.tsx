@@ -1,18 +1,28 @@
 "use client";
 import { useState } from "react";
-import { ArrowUpRight, ArrowUp, LoaderCircle, Sparkles, Shield, Check } from "lucide-react";
+import {
+  ArrowUpRight,
+  ArrowUp,
+  CircleNotch as LoaderCircle,
+  Sparkle as Sparkles,
+  Shield,
+  Check,
+} from "@phosphor-icons/react";
 import { Modal, NestMark } from "./ui";
 import { useLibrary } from "./library-provider";
 import { askModel, modelIsLoaded, loadModel, models, type AIPlan } from "@/lib/ai";
-import { searchScore } from "@/lib/bookmarks";
+import { folderKey, cleanFolderName } from "@/lib/paste";
+import { searchScore, extractUrls } from "@/lib/bookmarks";
 export function AssistantDialog({
   onClose,
   onSearch,
   onSettings,
+  onAdd,
 }: {
   onClose: () => void;
   onSearch: (query: string, ids?: string[]) => void;
   onSettings: () => void;
+  onAdd: (text: string) => void;
 }) {
   const { library, settings, setLibrary, toast } = useLibrary();
   const [prompt, setPrompt] = useState("");
@@ -22,6 +32,14 @@ export function AssistantDialog({
   const [error, setError] = useState("");
   async function ask(text = prompt) {
     if (!text.trim()) return;
+    const existingAction =
+      /^\s*(?:find|search|show|look|where|which|archive|delete|remove|favorite|unfavorite|mark|read)\b/i.test(
+        text,
+      );
+    if (extractUrls(text).length && !existingAction) {
+      onAdd(text);
+      return;
+    }
     setPrompt(text);
     setError("");
     setPlan(null);
@@ -57,12 +75,12 @@ export function AssistantDialog({
       let listId: string | undefined;
       let lists = s.lists;
       if (plan.action === "move") {
-        const name = plan.listName?.trim();
+        const name = plan.listName ? cleanFolderName(plan.listName) : "";
         if (!name) {
           toast("Please name the collection in your instruction.");
           return s;
         }
-        const list = lists.find((l) => l.name.toLowerCase() === name.toLowerCase() && !l.deletedAt);
+        const list = lists.find((l) => folderKey(l.name) === folderKey(name) && !l.deletedAt);
         listId = list?.id || crypto.randomUUID();
         if (!list) lists = [...lists, { id: listId, name, color: "lilac", updatedAt: now }];
       }
@@ -129,7 +147,7 @@ export function AssistantDialog({
         {[
           "Find something about accessible web design",
           "Show my gardening bookmarks",
-          "Move my design links to Design things",
+          'Save figma.com under "Design things"',
         ].map((s) => (
           <button key={s} onClick={() => void ask(s)} disabled={busy}>
             {s}
@@ -145,6 +163,7 @@ export function AssistantDialog({
       >
         <div className="assistant-input">
           <textarea
+            aria-label="Instructions for Nest"
             rows={2}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}

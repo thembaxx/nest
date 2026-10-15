@@ -1,4 +1,4 @@
-import { ArrowDownRight, Download } from "lucide-react";
+import { ArrowDownRight, Download } from "@phosphor-icons/react/ssr";
 import { PublicSite, PageIntro } from "@/components/public-site";
 import { pageMetadata } from "@/lib/brand";
 export const metadata = pageMetadata(

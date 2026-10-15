@@ -10,7 +10,8 @@ import {
 } from "react";
 import { defaultSettings, type Bookmark, type Library, type Settings } from "@/lib/types";
 import { seed } from "@/lib/seed";
-import { deduplicate, mergeLibrary } from "@/lib/bookmarks";
+import { mergeLibrary } from "@/lib/bookmarks";
+import { ingestBookmarks, type IngestOptions } from "@/lib/organize";
 import { readLibrary, writeLibrary } from "@/lib/storage";
 type SyncState = "local" | "syncing" | "synced" | "offline" | "error" | "unconfigured";
 type Context = {
@@ -26,7 +27,8 @@ type Context = {
   add: (
     bookmarks: Bookmark[],
     lists?: Library["lists"],
-  ) => { added: Bookmark[]; duplicates: number };
+    options?: IngestOptions,
+  ) => { added: Bookmark[]; duplicates: number; filed: number };
   sync: () => Promise<void>;
 };
 const LibraryContext = createContext<Context | null>(null);
@@ -180,19 +182,18 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       })),
     [],
   );
-  const add = useCallback((bookmarks: Bookmark[], lists: Library["lists"] = []) => {
-    const result = deduplicate(bookmarks, current.current.bookmarks);
-    const merged = {
-      bookmarks: [...result.added, ...current.current.bookmarks],
-      lists: [
-        ...current.current.lists,
-        ...lists.filter((l) => !current.current.lists.some((old) => old.id === l.id)),
-      ],
-    };
-    current.current = merged;
-    setLibrary(merged);
-    return result;
-  }, []);
+  const add = useCallback(
+    (bookmarks: Bookmark[], lists: Library["lists"] = [], options: IngestOptions = {}) => {
+      const result = ingestBookmarks(current.current, bookmarks, lists, {
+        autoOrganize: settingsRef.current.autoSort,
+        ...options,
+      });
+      current.current = result.library;
+      setLibrary(result.library);
+      return result;
+    },
+    [],
+  );
   return (
     <LibraryContext.Provider
       value={{

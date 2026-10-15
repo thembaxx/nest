@@ -1,6 +1,12 @@
 "use client";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowUpRight, Heart, MoreHorizontal, Check } from "lucide-react";
+import {
+  ArrowUpRight,
+  Heart,
+  DotsThree as MoreHorizontal,
+  SquaresFour,
+  Check,
+} from "@phosphor-icons/react";
 import type { Bookmark } from "@/lib/types";
 import { useLibrary } from "./library-provider";
 export function BookmarkCard({
@@ -56,7 +62,7 @@ export function BookmarkCard({
       <div className="card-content">
         <div className="card-source">
           <span className={`site-icon site-${b.art || "default"}`}>
-            {host === "are.na" ? "▧" : host.charAt(0).toUpperCase()}
+            {host === "are.na" ? <SquaresFour size={12} /> : host.charAt(0).toUpperCase()}
           </span>
           <span>{host}</span>
           <button
@@ -65,7 +71,7 @@ export function BookmarkCard({
             aria-label={`${b.favorite ? "Unfavorite" : "Favorite"} ${b.title}`}
             aria-pressed={b.favorite}
           >
-            <Heart size={16} fill={b.favorite ? "currentColor" : "none"} />
+            <Heart size={16} weight={b.favorite ? "fill" : "regular"} />
           </button>
         </div>
         <button className="card-title" onClick={onOpen}>

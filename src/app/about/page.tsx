@@ -2,12 +2,12 @@ import Link from "next/link";
 import {
   ArrowUpRight,
   Bookmark,
-  FolderHeart,
-  Import,
-  Search,
-  Sparkles,
-  WifiOff,
-} from "lucide-react";
+  FolderSimple as FolderHeart,
+  FileArrowDown as Import,
+  MagnifyingGlass as Search,
+  Sparkle as Sparkles,
+  WifiSlash as WifiOff,
+} from "@phosphor-icons/react/ssr";
 import { PublicSite } from "@/components/public-site";
 import { absoluteUrl, brand, faqs, jsonLd, pageMetadata } from "@/lib/brand";
 export const metadata = pageMetadata(
@@ -136,7 +136,7 @@ export default function AboutPage() {
         {features.map(({ icon: Icon, name, text }, i) => (
           <article key={name}>
             <span className={`feature-icon feature-${i}`}>
-              <Icon size={22} strokeWidth={1.6} />
+              <Icon size={22} weight="regular" />
             </span>
             <h3>{name}</h3>
             <p>{text}</p>

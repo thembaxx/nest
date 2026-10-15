@@ -1,6 +1,13 @@
 "use client";
 import { useState } from "react";
-import { ArrowRight, Upload, Check, Sparkles, Leaf, Link } from "lucide-react";
+import {
+  ArrowRight,
+  Upload,
+  Check,
+  Sparkle as Sparkles,
+  Leaf,
+  LinkSimple as Link,
+} from "@phosphor-icons/react";
 import { Modal, NestMark } from "./ui";
 import { useLibrary } from "./library-provider";
 export function OnboardingDialog({
@@ -72,7 +79,7 @@ export function OnboardingDialog({
       ) : (
         <>
           <div className="onboarding-options">
-            <label htmlFor="onboard-sort" aria-label="Let Nest suggest topics">
+            <label htmlFor="onboard-sort" aria-label="Let Nest organize your links">
               <input
                 id="onboard-sort"
                 type="checkbox"
@@ -80,7 +87,7 @@ export function OnboardingDialog({
                 onChange={(e) => setSettings({ autoSort: e.target.checked })}
               />
               <span>
-                <strong>Let Nest suggest topics</strong>
+                <strong>Let Nest organize your links</strong>
                 <small>A little less organizing, automatically.</small>
               </span>
             </label>

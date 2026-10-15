@@ -3,33 +3,33 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   Archive,
-  ArrowDownUp,
+  ArrowsDownUp as ArrowDownUp,
   ArrowRight,
   ArrowUpRight,
   Bookmark,
   Check,
-  ChevronDown,
-  ChevronRight,
+  CaretDown as ChevronDown,
+  CaretRight as ChevronRight,
   Cloud,
-  CloudOff,
+  CloudSlash as CloudOff,
   Command,
   Folder,
   Heart,
-  LayoutGrid,
-  Link2,
+  SquaresFour as LayoutGrid,
+  LinkSimple as Link2,
   List,
-  Menu,
+  List as Menu,
   Plus,
-  Search,
-  Settings,
-  Sparkles,
+  MagnifyingGlass as Search,
+  GearSix as Settings,
+  Sparkle as Sparkles,
   Upload,
   X,
   BookOpen,
-  Network,
+  Graph as Network,
   Leaf,
   Download,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useLibrary } from "./library-provider";
 import { Modal, Empty } from "./ui";
 import { BookmarkCard } from "./bookmark-card";
@@ -371,7 +371,8 @@ export function NestApp() {
           <div className="greeting">
             <div>
               <div className="eyebrow greeting-label">
-                <span className="little-flower">✳</span> YOUR LITTLE CORNER OF THE INTERNET
+                <Sparkles size={14} className="little-flower" aria-hidden="true" /> YOUR LITTLE
+                CORNER OF THE INTERNET
               </div>
               <h1>{viewTitle}</h1>
               <p>
@@ -416,7 +417,7 @@ export function NestApp() {
                       <span />
                     </div>
                     <span className="collection-top">
-                      <Folder size={18} strokeWidth={1.5} />
+                      <Folder size={18} weight="regular" />
                       <ArrowUpRight size={17} />
                     </span>
                     <div>
@@ -505,7 +506,7 @@ export function NestApp() {
                     setAiIds(undefined);
                     if (e.target.value) setSort("relevance");
                   }}
-                  placeholder="Search your library, or follow a thought…"
+                  placeholder="Search your bookmarks…"
                 />
                 {query ? (
                   <button
@@ -678,6 +679,10 @@ export function NestApp() {
       {dialog === "assistant" && (
         <AssistantDialog
           onClose={close}
+          onAdd={(text) => {
+            setInitialLink(text);
+            setDialog("add");
+          }}
           onSettings={() => setDialog("ai-settings")}
           onSearch={(q, ids) => {
             setView("all");
@@ -792,7 +797,7 @@ function Nav({
       className={active ? "active" : ""}
       aria-current={active ? "page" : undefined}
     >
-      <Icon size={18} strokeWidth={1.65} />
+      <Icon size={18} weight="regular" />
       <span>{label}</span>
       {count !== undefined && <span className="nav-count">{count}</span>}
     </button>

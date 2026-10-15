@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "@phosphor-icons/react/ssr";
 import "./public-site.css";
 export function PublicSite({ children, active }: { children: ReactNode; active?: string }) {
   return (

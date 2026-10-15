@@ -1,10 +1,20 @@
 "use client";
 /* oxlint-disable jsx-a11y/no-noninteractive-element-interactions -- Drag events supplement the accessible native file input. */
-import { useState } from "react";
-import { ArrowUpRight, Check, Link, LoaderCircle, Upload, FileUp } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  ArrowUpRight,
+  Check,
+  LinkSimple,
+  CircleNotch,
+  Upload,
+  FileArrowUp,
+  Folder,
+  Sparkle,
+} from "@phosphor-icons/react";
 import { Modal } from "./ui";
 import { useLibrary } from "./library-provider";
-import { classify, extractUrls, makeBookmark, parseImport, canonicalUrl } from "@/lib/bookmarks";
+import { classify, makeBookmark, parseImport, canonicalUrl } from "@/lib/bookmarks";
+import { cleanFolderName, folderKey, parsePaste } from "@/lib/paste";
 import { bookmarkSchema, listSchema, type Bookmark } from "@/lib/types";
 import { celebrate } from "@/lib/celebrate";
 export function AddDialog({
@@ -21,57 +31,90 @@ export function AddDialog({
   const [tab, setTab] = useState(importMode ? "import" : "paste");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
-  const [listId, setListId] = useState("");
+  const [folderOverride, setFolderOverride] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const urls = extractUrls(text);
-  const existing = new Set(
-    library.bookmarks.filter((b) => !b.deletedAt).map((b) => canonicalUrl(b.url)),
+  const entries = useMemo(() => parsePaste(text), [text]);
+  const urls = [...new Set(entries.map((entry) => entry.url))];
+  const inferredFolders = [
+    ...new Set(entries.map((entry) => entry.folderName).filter((name): name is string => !!name)),
+  ];
+  const folderValue = folderOverride ?? (inferredFolders.length === 1 ? inferredFolders[0] : "");
+  const activeLists = library.lists.filter((list) => !list.deletedAt);
+  const existing = new Map(
+    library.bookmarks
+      .filter((bookmark) => !bookmark.deletedAt)
+      .map((bookmark) => [canonicalUrl(bookmark.url), bookmark]),
   );
-  const duplicateCount = urls.filter((u) => existing.has(canonicalUrl(u))).length;
+  const duplicateCount = urls.filter((url) => existing.has(canonicalUrl(url))).length;
+  function destination(entry: (typeof entries)[number]) {
+    return folderOverride !== null ? cleanFolderName(folderOverride) : entry.folderName;
+  }
+  function announce(
+    result: { added: Bookmark[]; duplicates: number; filed: number },
+    importing = false,
+  ) {
+    toast(
+      `${importing ? "Imported " : "Saved "}${result.added.length} bookmark${result.added.length === 1 ? "" : "s"}${result.duplicates ? ` · ${result.duplicates} already saved` : ""}${result.filed ? ` · ${result.filed} filed in folders` : ""}`,
+    );
+    setSettings({ onboarded: true });
+    if (result.added.length && settings.effects) void celebrate();
+    onClose();
+  }
   async function save() {
     setBusy(true);
     setError("");
     try {
-      const bookmarks: Bookmark[] = [];
+      const prepared = new Map<string, Bookmark>();
       for (let i = 0; i < urls.length; i += 4) {
         setProgress(
           `Getting to know your links · ${Math.min(i + 4, urls.length)} of ${urls.length}`,
         );
-        const batch = await Promise.all(
+        await Promise.all(
           urls.slice(i, i + 4).map(async (url) => {
-            const b = makeBookmark(url, { listIds: listId ? [listId] : [] });
+            const old = existing.get(canonicalUrl(url));
+            const bookmark = makeBookmark(url);
+            if (old) {
+              prepared.set(url, bookmark);
+              return;
+            }
             try {
-              const r = await fetch("/api/metadata", {
+              const response = await fetch("/api/metadata", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ url }),
                 signal: AbortSignal.timeout(12000),
               });
-              if (r.ok) {
-                const m = await r.json();
-                if (m.title) b.title = m.title;
-                if (m.description) b.description = m.description;
-                b.status = m.status || "unchecked";
+              if (response.ok) {
+                const metadata = await response.json();
+                if (metadata.title) bookmark.title = String(metadata.title).slice(0, 500);
+                if (metadata.description)
+                  bookmark.description = String(metadata.description).slice(0, 2000);
+                if (["healthy", "unreachable", "dead", "unchecked"].includes(metadata.status))
+                  bookmark.status = metadata.status;
               }
             } catch {}
-            b.topic = settings.autoSort
-              ? classify(b.title + " " + b.description + " " + url)
+            const context = entries
+              .filter((entry) => entry.url === url)
+              .map((entry) => entry.context)
+              .join(" ");
+            bookmark.topic = settings.autoSort
+              ? classify(`${bookmark.title} ${bookmark.description} ${url} ${context}`)
               : "Unsorted";
-            b.tags = b.topic === "Unsorted" ? [] : [b.topic.toLowerCase()];
-            return b;
+            bookmark.tags = bookmark.topic === "Unsorted" ? [] : [bookmark.topic.toLowerCase()];
+            prepared.set(url, bookmark);
           }),
         );
-        bookmarks.push(...batch);
       }
-      const result = add(bookmarks);
-      toast(
-        `${result.added.length} bookmark${result.added.length === 1 ? "" : "s"} tucked away${result.duplicates ? ` · ${result.duplicates} duplicate${result.duplicates === 1 ? "" : "s"} skipped` : ""}`,
-      );
-      setSettings({ onboarded: true });
-      if (result.added.length && settings.effects) void celebrate();
-      onClose();
-    } catch {
-      setError("Could not add these links. Please try again.");
+      const folders: Record<string, string> = {};
+      const bookmarks = entries.map((entry) => {
+        const bookmark = { ...prepared.get(entry.url)!, id: crypto.randomUUID() };
+        const folder = destination(entry);
+        if (folder) folders[bookmark.id] = folder;
+        return bookmarkSchema.parse(bookmark);
+      });
+      announce(add(bookmarks, [], { autoOrganize: settings.autoSort, folders }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not add these links. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -81,18 +124,14 @@ export function AddDialog({
     setError("");
     try {
       if (file.size > 20 * 1024 * 1024) throw Error("Please use a file smaller than 20 MB.");
-      const parsed = parseImport(await file.text(), file.name);
-      const bookmarks = parsed.bookmarks.map((b) => bookmarkSchema.parse(b));
-      const lists = parsed.lists.map((l) => listSchema.parse(l));
+      const parsed = parseImport(await file.text(), file.name, { autoOrganize: settings.autoSort });
+      const bookmarks = parsed.bookmarks.map((bookmark) => bookmarkSchema.parse(bookmark));
+      const lists = parsed.lists.map((list) => listSchema.parse(list));
       if (!bookmarks.length)
         throw Error(
           "No bookmarks found. Choose a browser HTML export or a Nest / Firefox / Chrome JSON file.",
         );
-      const result = add(bookmarks, lists);
-      toast(`Imported ${result.added.length} bookmarks · ${result.duplicates} duplicates skipped`);
-      setSettings({ onboarded: true });
-      if (result.added.length && settings.effects) void celebrate();
-      onClose();
+      announce(add(bookmarks, lists), true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to read this file.");
     } finally {
@@ -108,10 +147,18 @@ export function AddDialog({
       }}
     >
       <div className="segmented">
-        <button className={tab === "paste" ? "active" : ""} onClick={() => setTab("paste")}>
-          <Link size={16} /> Paste links
+        <button
+          disabled={busy}
+          className={tab === "paste" ? "active" : ""}
+          onClick={() => setTab("paste")}
+        >
+          <LinkSimple size={16} /> Paste links
         </button>
-        <button className={tab === "import" ? "active" : ""} onClick={() => setTab("import")}>
+        <button
+          disabled={busy}
+          className={tab === "import" ? "active" : ""}
+          onClick={() => setTab("import")}
+        >
           <Upload size={16} /> Import bookmarks
         </button>
       </div>
@@ -123,37 +170,89 @@ export function AddDialog({
           <textarea
             id="links"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(event) => setText(event.target.value)}
             placeholder={
-              "https://something-wonderful.com\n\nOr paste a whole conversation. Nest will find each link."
+              'Save figma.com and github.com under "Weekend ideas"\n\nOr paste any text with links. No https:// needed.'
             }
-            rows={6}
+            rows={5}
             maxLength={100000}
             disabled={busy}
           />
-          <div className="input-hint">
+          <div className="input-hint" aria-live="polite">
             {urls.length ? (
               <>
                 <Check size={14} /> {urls.length} link{urls.length === 1 ? "" : "s"} found
                 {duplicateCount ? ` · ${duplicateCount} already saved` : ""}
               </>
             ) : (
-              "Every link gets its own bookmark. Duplicates are skipped."
+              "Every link gets its own bookmark. Existing links can be filed into another folder."
             )}
           </div>
           <label className="field-label" htmlFor="collection">
-            Add to a collection <span>(optional)</span>
+            Folder <span>(optional)</span>
           </label>
-          <select id="collection" value={listId} onChange={(e) => setListId(e.target.value)}>
-            <option value="">Just my library</option>
-            {library.lists
-              .filter((l) => !l.deletedAt)
-              .map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
+          <input
+            id="collection"
+            list="existing-folders"
+            value={folderValue}
+            onChange={(event) => setFolderOverride(event.target.value)}
+            placeholder={
+              inferredFolders.length > 1 && folderOverride === null
+                ? "Multiple folders found below"
+                : "Automatic, or type a folder name"
+            }
+            maxLength={80}
+            disabled={busy}
+          />
+          <datalist id="existing-folders">
+            {activeLists.map((list) => (
+              <option key={list.id} value={list.name}>
+                {list.name}
+              </option>
+            ))}
+          </datalist>
+          <div className="input-hint">
+            {folderValue ? (
+              <>
+                <Folder size={14} />{" "}
+                {activeLists.some((list) => folderKey(list.name) === folderKey(folderValue))
+                  ? "Uses your existing folder"
+                  : "Creates this folder when you save"}
+              </>
+            ) : (
+              "Choose an existing folder or name a new one. Your folder instructions take priority."
+            )}
+          </div>
+          {!!entries.length && (
+            <div className="paste-preview" aria-label="Bookmark destinations">
+              {entries.slice(0, 5).map((entry, index) => (
+                <div className="paste-preview-row" key={`${entry.url}-${index}`}>
+                  <LinkSimple size={15} />
+                  <span title={entry.url}>{entry.url.replace(/^https?:\/\//, "")}</span>
+                  <small>
+                    <Folder size={13} />
+                    {destination(entry) || (settings.autoSort ? "Automatic" : "Library")}
+                  </small>
+                </div>
               ))}
-          </select>
+              {entries.length > 5 && (
+                <p className="small muted">And {entries.length - 5} more destinations</p>
+              )}
+            </div>
+          )}
+          <label className="paste-auto">
+            <input
+              type="checkbox"
+              checked={settings.autoSort}
+              disabled={busy}
+              onChange={(event) => setSettings({ autoSort: event.target.checked })}
+            />
+            <span>
+              <strong>Organize automatically</strong>
+              <small>Find topics and use matching folders when you haven’t chosen one.</small>
+            </span>
+            <Sparkle size={18} />
+          </label>
           {error && (
             <p role="alert" className="error">
               {error}
@@ -161,18 +260,23 @@ export function AddDialog({
           )}
           <footer className="modal-footer">
             <span>
-              {busy
-                ? progress
-                : settings.autoSort
-                  ? "✧ Topics will be added automatically"
-                  : "Auto-sort is off in Settings"}
+              {busy ? (
+                progress
+              ) : (
+                <>
+                  <Sparkle size={14} />{" "}
+                  {settings.autoSort
+                    ? "A little sorting, taken care of"
+                    : "Automatic sorting is off"}
+                </>
+              )}
             </span>
             <button
               className="button primary"
               disabled={!urls.length || busy || urls.length > 100}
               onClick={() => void save()}
             >
-              {busy ? <LoaderCircle className="spin" size={16} /> : <ArrowUpRight size={17} />}{" "}
+              {busy ? <CircleNotch className="spin" size={16} /> : <ArrowUpRight size={17} />}
               {busy
                 ? "Tucking away…"
                 : `Save ${urls.length > 1 ? urls.length + " bookmarks" : "bookmark"}`}
@@ -187,13 +291,14 @@ export function AddDialog({
           <label
             htmlFor="import-file"
             className="import-drop"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (e.dataTransfer.files[0] && !busy) void importFile(e.dataTransfer.files[0]);
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              if (event.dataTransfer.files[0] && !busy)
+                void importFile(event.dataTransfer.files[0]);
             }}
           >
-            <FileUp size={34} strokeWidth={1.2} />
+            <FileArrowUp size={34} weight="light" />
             <strong>
               {busy ? "Making room for your collection…" : "Drop your bookmark file here"}
             </strong>
@@ -206,8 +311,8 @@ export function AddDialog({
               type="file"
               accept=".html,.htm,.json"
               disabled={busy}
-              onChange={(e) => {
-                if (e.target.files?.[0]) void importFile(e.target.files[0]);
+              onChange={(event) => {
+                if (event.target.files?.[0]) void importFile(event.target.files[0]);
               }}
               aria-label="Choose bookmark import file"
             />
@@ -215,8 +320,9 @@ export function AddDialog({
           <div className="note-box">
             <strong>A fresh start, without starting over.</strong>
             <p>
-              Your browser’s Bookmark Manager has an Export option. Nest keeps folder names as
-              collections and quietly skips duplicate links.
+              Your browser’s Bookmark Manager has an Export option. Nest keeps folders as
+              collections, reuses matching names, and files duplicate links into their imported
+              folders.
             </p>
           </div>
           {error && (

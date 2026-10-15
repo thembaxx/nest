@@ -28,3 +28,30 @@
 .main-footer .brand-resource-link{font-size:9px;color:var(--muted);display:inline-flex;align-items:center;gap:4px}
 .no-script-message{max-width:680px;margin:40px auto;padding:25px;color:var(--text)}
 .no-script-message h1{font-size:36px}.no-script-message p{font-size:13px;line-height:1.9;margin:20px 0}.no-script-message a{margin-right:20px;font-size:12px;text-decoration:underline}
+
+/* Keep native fields at 16px on every device, including compact toolbar controls. */
+html body :is(input, textarea, select, [contenteditable="true"]) { font-size: 16px; }
+.sort-select select { width: 132px; }
+.sort-select, .search-field > svg, .little-flower { flex-shrink: 0; }
+.paste-preview { margin: 16px 0; padding: 4px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.paste-preview-row { display: flex; align-items: center; gap: 9px; padding: 10px 0; color: var(--muted); }
+.paste-preview-row + .paste-preview-row { border-top: 1px solid var(--line); }
+.paste-preview-row > svg { flex-shrink: 0; }
+.paste-preview-row > span { min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; color: var(--text); }
+.paste-preview-row small { display: flex; align-items: center; gap: 5px; max-width: 45%; overflow-wrap: anywhere; font-size: 11px; }
+.paste-preview-row small svg { flex-shrink: 0; }
+.paste-auto { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding: 14px; background: var(--surface); border-radius: 16px; border: 1px solid var(--line); cursor: pointer; }
+.paste-auto input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--green); }
+.paste-auto span { flex: 1; }
+.paste-auto strong { display: block; font-size: 12px; font-weight: 500; }
+.paste-auto small { display: block; font-size: 11px; line-height: 1.5; margin-top: 4px; color: var(--muted); }
+.modal-footer > span:has(svg) { display: flex; align-items: center; gap: 6px; }
+@media(max-width: 700px) {
+  .search-toolbar { flex-wrap: wrap; }
+  .search-field { flex-basis: 100%; }
+  .sort-select { min-height: 42px; margin-left: auto; padding: 0 12px; gap: 8px; }
+  .sort-select select { width: 132px; }
+  .sort-select > svg:first-child { display: block; }
+  .search-field input::placeholder { font-size: 16px; }
+  .paste-preview { padding: 4px 10px; }
+}

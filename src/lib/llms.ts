@@ -17,10 +17,10 @@ Nest is an installable web app that saves a bookmark library on the user's devic
 
 ## Capabilities
 
-- Extract multiple HTTP(S) links from pasted text; fetch page titles and descriptions when available.
+- Extract links from pasted text, including bare domains without https://; fetch page titles and descriptions when available.
 - Import browser HTML and supported JSON bookmark files; browser folders become collections.
 - Skip duplicate canonical URLs, including common tracking-parameter variants.
-- Suggest topics; search saved metadata; filter, sort, favorite, mark read, archive, annotate, and restore trashed bookmarks.
+- Assign topics and matching collections automatically unless a destination is chosen; search saved metadata; filter, sort, favorite, mark read, archive, annotate, and restore trashed bookmarks.
 - Browse the saved library offline after the app and its assets have loaded. Destination pages are not downloaded.
 - Optionally download SmolLM2 360M, Llama 3.2 1B, or Qwen 2.5 1.5B. Download sizes and memory guidance appear in Settings.
 - Use optional local AI for finding links and proposing favorite, read, archive, or collection changes. The user previews changes before applying them.
@@ -35,7 +35,7 @@ A user's bookmarks, notes, recovery key, and private sync endpoints are not publ
 export const llmsFullText = `${llmsText}
 ## Importing and saving
 
-Paste a URL, several URLs, or prose containing links in Add bookmark. Each extracted link becomes its own bookmark. Up to 100 links can be pasted in one batch; larger libraries can be imported as files. Metadata fetching is best effort and does not prevent saving a valid link.
+Paste a URL, several URLs, or prose containing links in Add bookmark. Each extracted link becomes its own bookmark. Up to 100 links can be pasted in one batch; larger libraries can be imported as files. Metadata fetching is best effort and does not prevent saving a valid link. Bare domains such as figma.com are normalized to HTTPS. A common instruction such as Save figma.com and github.com under "Weekend ideas" assigns both links to that folder, creating it if needed. Review destinations before saving or type a folder name to override them. Existing folder names are matched without case differences; duplicate links gain requested folder membership without losing their saved notes. Without a chosen folder, automatic organization uses page metadata and domain signals to assign a topic and a matching collection. It can be switched off.
 
 For browser migration, use the browser's Bookmark Manager to export an HTML file, then choose Import in Nest. HTML from Chrome, Safari, Firefox, Edge, and Brave follows the common Netscape bookmark format. Nest also understands supported Chrome / Firefox JSON structures and its own JSON exports. Folder paths become custom collections. The browser cannot directly read another browser's private bookmark database.
 

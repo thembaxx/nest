@@ -49,7 +49,7 @@ export const faqs = [
   {
     question: "Can I import bookmarks from another browser?",
     answer:
-      "Yes. Export an HTML bookmark file from Chrome, Safari, Firefox, Edge, or Brave, then import it into Nest. Browser folders become collections and duplicate links are skipped. Nest, Chrome, and Firefox JSON imports are also supported.",
+      "Yes. Export an HTML bookmark file from Chrome, Safari, Firefox, Edge, or Brave, then import it into Nest. Browser folders become collections, matching folder names are reused, and duplicate links are filed without creating duplicate bookmarks. Nest, Chrome, and Firefox JSON imports are also supported.",
   },
   {
     question: "Does Nest work offline?",

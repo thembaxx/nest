@@ -1,6 +1,14 @@
 "use client";
 import { useState } from "react";
-import { Archive, ArrowUpRight, BookCheck, Heart, Trash2, RotateCcw, Check } from "lucide-react";
+import {
+  Archive,
+  ArrowUpRight,
+  BookOpenText as BookCheck,
+  Heart,
+  Trash as Trash2,
+  ArrowCounterClockwise as RotateCcw,
+  Check,
+} from "@phosphor-icons/react";
 import { Modal } from "./ui";
 import { useLibrary } from "./library-provider";
 import { topics, type Bookmark } from "@/lib/types";

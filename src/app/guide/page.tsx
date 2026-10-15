@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Command } from "@phosphor-icons/react/ssr";
 import { PublicSite, PageIntro } from "@/components/public-site";
 import { pageMetadata } from "@/lib/brand";
 export const metadata = pageMetadata(
@@ -16,12 +16,14 @@ const sections = [
       <>
         <p>
           Open Nest and choose <strong>Add bookmark</strong>. Paste a link, a handful of links, or
-          any text containing URLs. Each link becomes its own bookmark. Nest skips duplicates and
-          fetches the page title and description when it can.
+          any text containing URLs, including addresses without https://. Each link becomes its own
+          bookmark. Nest detects duplicates and fetches the page title and description when it can.
         </p>
         <p>
-          You can paste up to 100 links in one batch. For a bigger collection, import a file. Topic
-          suggestions can be switched off in Settings.
+          Try <strong>Save figma.com and github.com under &quot;Weekend ideas&quot;</strong>. Nest
+          uses that folder or creates it when you save. Review each destination, or type another
+          folder name to override the instruction. Already-saved links gain the requested folder
+          without losing notes.
         </p>
       </>
     ),
@@ -55,8 +57,12 @@ const sections = [
           collections, edit its topic or tags, and leave a note for your future self.
         </p>
         <p>
-          Favorites keep the best things close. Read later gathers unread bookmarks. Archive tucks
-          things out of the way, and items moved to trash can be restored from Settings.
+          With automatic organization on, new links without a chosen folder get a topic and a
+          matching collection. Explicit folders and imported folders take priority. You can switch
+          this off in Settings. Paste up to 100 links at a time, or import a file for larger
+          batches. Favorites keep the best things close. Read later gathers unread bookmarks.
+          Archive tucks things out of the way, and items moved to trash can be restored from
+          Settings.
         </p>
       </>
     ),
@@ -73,8 +79,12 @@ const sections = [
           or relevance.
         </p>
         <p>
-          Press <kbd>⌘ K</kbd> or <kbd>Ctrl K</kbd> to jump into search. In list view, swipe right
-          to mark a bookmark read or left to favorite it.
+          Press{" "}
+          <kbd>
+            <Command size={12} aria-label="Command" /> K
+          </kbd>{" "}
+          or <kbd>Ctrl K</kbd> to jump into search. In list view, swipe right to mark a bookmark
+          read or left to favorite it.
         </p>
       </>
     ),

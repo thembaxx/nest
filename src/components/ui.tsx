@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useId, useRef, type ReactNode } from "react";
-import { X, ArrowUpRight } from "lucide-react";
+import { X, ArrowUpRight } from "@phosphor-icons/react";
 export function NestMark({ className = "" }: { className?: string }) {
   return (
     <svg

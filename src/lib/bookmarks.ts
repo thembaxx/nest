@@ -1,13 +1,7 @@
 import type { Bookmark, BookmarkList, Library, Topic } from "./types";
-export function validUrl(value: string): string | null {
-  try {
-    const u = new URL(value.startsWith("www.") ? "https://" + value : value);
-    if (!["http:", "https:"].includes(u.protocol) || !u.hostname.includes(".")) return null;
-    return u.href;
-  } catch {
-    return null;
-  }
-}
+import { validUrl } from "./urls";
+import { folderKey } from "./paste";
+export { validUrl, extractUrls } from "./urls";
 export function canonicalUrl(value: string): string {
   const u = new URL(value);
   u.hash = u.hash === "#" ? "" : u.hash;
@@ -19,33 +13,52 @@ export function canonicalUrl(value: string): string {
   u.pathname = u.pathname.replace(/\/+$/, "") || "/";
   return u.href;
 }
-export function extractUrls(text: string): string[] {
-  return [
-    ...new Set(
-      (text.match(/(?:https?:\/\/|www\.)[^\s<>"'`]+/gi) || [])
-        .map((v) => v.replace(/[.,;!?)\]}]+$/, ""))
-        .map(validUrl)
-        .filter((u): u is string => !!u),
-    ),
-  ];
-}
 const rules: Record<Exclude<Topic, "Unsorted">, RegExp> = {
-  Design: /design|figma|typograph|font|color|ux|dribbble|interface|awwwards|branding/i,
+  Design:
+    /\b(?:design(?:s|ing)?|figma|typograph\w*|fonts?|colou?rs?|ux|ui|dribbble|interfaces?|awwwards|branding)\b/gi,
   Development:
-    /github|code|developer|javascript|typescript|react|nextjs|next\.js|vercel|web\.dev|css|programming|three\.js|tailwind|api|engineering/i,
-  Reading: /book|essay|read|article|substack|medium|literature|journal|newsletter|writing/i,
-  Inspiration: /inspir|pinterest|are\.na|art|creative|photograph|museum|architecture|unsplash/i,
-  "Life & living": /travel|recipe|cook|food|garden|nature|wellness|health|living|hike|plant/i,
+    /\b(?:github|code|coding|developers?|development|javascript|typescript|react|nextjs|next\.js|vercel|web\.dev|css|programming|three\.js|tailwind|api|engineering|webgl|software)\b/gi,
+  Reading:
+    /\b(?:books?|essays?|reading|articles?|substack|medium|literature|journals?|newsletters?|writing|poetry)\b/gi,
+  Inspiration:
+    /\b(?:inspiration|pinterest|are\.na|art|creative|creativity|photograph\w*|museums?|architecture|unsplash|illustration)\b/gi,
+  "Life & living":
+    /\b(?:travel\w*|recipes?|cook\w*|food|garden\w*|nature|wellness|health|living|hik(?:e|ing)|plants?)\b/gi,
 };
+const domains: [RegExp, Exclude<Topic, "Unsorted">][] = [
+  [/(?:^|\.)(?:figma\.com|dribbble\.com|awwwards\.com|fonts\.google\.com)$/, "Design"],
+  [
+    /(?:^|\.)(?:github\.com|githubusercontent\.com|developer\.mozilla\.org|web\.dev|vercel\.com|react\.dev|nextjs\.org|stackoverflow\.com)$/,
+    "Development",
+  ],
+  [/(?:^|\.)(?:substack\.com|medium\.com|theparisreview\.org|goodreads\.com)$/, "Reading"],
+  [/(?:^|\.)(?:are\.na|pinterest\.com|unsplash\.com|itsnicethat\.com)$/, "Inspiration"],
+  [/(?:^|\.)(?:gardenersworld\.com|allrecipes\.com|bbcgoodfood\.com)$/, "Life & living"],
+];
 export function classify(text: string): Topic {
-  for (const [topic, rule] of Object.entries(rules)) if (rule.test(text)) return topic as Topic;
-  return "Unsorted";
+  const scores = new Map<Topic, number>();
+  for (const [topic, rule] of Object.entries(rules))
+    scores.set(topic as Topic, (text.match(rule) || []).length);
+  for (const link of text.match(/https?:\/\/[^\s]+/gi) || []) {
+    try {
+      const host = new URL(link).hostname;
+      for (const [rule, topic] of domains)
+        if (rule.test(host)) scores.set(topic, (scores.get(topic) || 0) + 6);
+    } catch {}
+  }
+  const best = [...scores].sort((a, b) => b[1] - a[1])[0];
+  return best?.[1] ? best[0] : "Unsorted";
 }
 export function titleFromUrl(url: string) {
   const u = new URL(url);
-  const slug = u.pathname.split("/").filter(Boolean).pop();
+  let slug = u.pathname.split("/").filter(Boolean).pop();
+  if (slug) {
+    try {
+      slug = decodeURIComponent(slug);
+    } catch {}
+  }
   return slug
-    ? decodeURIComponent(slug)
+    ? slug
         .replace(/[-_]/g, " ")
         .replace(/\.[a-z]+$/i, "")
         .replace(/^./, (v) => v.toUpperCase())
@@ -98,11 +111,20 @@ export function deduplicate(incoming: Bookmark[], existing: Bookmark[]) {
   });
   return { added, duplicates };
 }
-export function parseImport(text: string, filename: string): Library {
+export function parseImport(
+  text: string,
+  filename: string,
+  options: { autoOrganize?: boolean } = {},
+): Library {
+  const importBookmark = (url: string, meta: Partial<Bookmark>) =>
+    makeBookmark(url, {
+      ...meta,
+      ...(options.autoOrganize === false && !meta.topic ? { topic: "Unsorted" as const } : {}),
+    });
   const bookmarks: Bookmark[] = [];
   const lists: BookmarkList[] = [];
   const getList = (name: string) => {
-    let list = lists.find((l) => l.name === name);
+    let list = lists.find((l) => folderKey(l.name) === folderKey(name));
     if (!list) {
       list = {
         id: crypto.randomUUID(),
@@ -114,15 +136,16 @@ export function parseImport(text: string, filename: string): Library {
     }
     return list.id;
   };
-  if (filename.endsWith(".json")) {
+  if (filename.toLowerCase().endsWith(".json")) {
     const data = JSON.parse(text);
     if (data.bookmarks && Array.isArray(data.bookmarks)) {
       for (const b of data.bookmarks) {
         const url = validUrl(b.url || "");
         if (url)
           bookmarks.push(
-            makeBookmark(url, {
+            importBookmark(url, {
               ...b,
+              url,
               id: crypto.randomUUID(),
               updatedAt: Date.now(),
               deletedAt: undefined,
@@ -136,7 +159,7 @@ export function parseImport(text: string, filename: string): Library {
       const url = validUrl(String(node.url || node.uri || ""));
       if (url)
         bookmarks.push(
-          makeBookmark(url, {
+          importBookmark(url, {
             title: String(node.name || node.title || titleFromUrl(url)),
             listIds: folder ? [getList(folder)] : [],
           }),
@@ -173,7 +196,7 @@ export function parseImport(text: string, filename: string): Library {
       .filter((x) => !/^Bookmarks|Bookmarks bar|Other bookmarks$/i.test(x))
       .join(" / ");
     bookmarks.push(
-      makeBookmark(url, {
+      importBookmark(url, {
         title: a.textContent?.trim() || titleFromUrl(url),
         listIds: name ? [getList(name)] : [],
         createdAt: Number(a.getAttribute("add_date")) * 1000 || Date.now(),
