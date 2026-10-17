@@ -51,6 +51,9 @@ export type Settings = {
   theme: "system" | "light" | "dark";
   autoSort: boolean;
   syncKey?: string;
+  driveKey?: string;
+  drivePendingKey?: string;
+  driveDeviceId?: string;
   onboarded: boolean;
   model?: string;
   healthChecks: boolean;

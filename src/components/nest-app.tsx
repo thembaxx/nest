@@ -375,9 +375,11 @@ export function NestApp() {
                       ? "Syncing…"
                       : syncState === "unconfigured"
                         ? "Sync needs setup"
-                        : syncState === "error"
-                          ? "Sync will retry"
-                          : "Saved on this device"}
+                        : syncState === "reconnect"
+                          ? "Reconnect Google"
+                          : syncState === "error"
+                            ? "Sync will retry"
+                            : "Saved on this device"}
               </span>
               <i className={!online ? "offline" : ""} />
             </button>

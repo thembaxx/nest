@@ -1,0 +1,214 @@
+import { z } from "zod";
+import { mergeLibrary } from "./bookmarks";
+import { personalLibrary } from "./backup";
+import { decryptData, encryptData, importRecoveryKey, MAX_BACKUP_BYTES } from "./encryption";
+import { librarySchema, type Library } from "./types";
+
+const SCOPE = "https://www.googleapis.com/auth/drive.appdata";
+const API = "https://www.googleapis.com/drive/v3/files";
+export const googleDriveConfigured = !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+export type DriveSession = { accessToken: string; expiresAt: number };
+type GoogleIdentity = {
+  accounts: {
+    oauth2: {
+      initTokenClient: (config: {
+        client_id: string;
+        scope: string;
+        include_granted_scopes: boolean;
+        callback: (response: {
+          access_token?: string;
+          expires_in?: number;
+          scope?: string;
+          error?: string;
+        }) => void;
+        error_callback: () => void;
+      }) => { requestAccessToken: (options: { prompt: string }) => void };
+    };
+  };
+};
+declare global {
+  interface Window {
+    google?: GoogleIdentity;
+  }
+}
+let identityLoading: Promise<void> | undefined;
+function loadIdentity() {
+  if (window.google?.accounts.oauth2) return Promise.resolve();
+  if (!identityLoading)
+    identityLoading = new Promise<void>((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.referrerPolicy = "no-referrer";
+      const timeout = setTimeout(() => {
+        script.remove();
+        identityLoading = undefined;
+        reject(Error("Google sign-in could not load. Check your connection and try again."));
+      }, 15000);
+      script.onload = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+      script.onerror = () => {
+        clearTimeout(timeout);
+        script.remove();
+        identityLoading = undefined;
+        reject(Error("Google sign-in could not load. Check your connection and try again."));
+      };
+      document.head.append(script);
+    });
+  return identityLoading;
+}
+// Loading on a pointer/focus gesture lets the subsequent click open Google's popup synchronously.
+export function prepareGoogleSignIn() {
+  if (googleDriveConfigured) void loadIdentity().catch(() => {});
+}
+export async function authorizeGoogleDrive(): Promise<DriveSession> {
+  if (!googleDriveConfigured) throw Error("Google Drive sync is unavailable on this installation.");
+  await loadIdentity();
+  return new Promise((resolve, reject) => {
+    const client = window.google!.accounts.oauth2.initTokenClient({
+      client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+      scope: SCOPE,
+      include_granted_scopes: false,
+      callback: (response) => {
+        if (
+          response.error ||
+          !response.access_token ||
+          !response.scope?.split(" ").includes(SCOPE)
+        ) {
+          reject(Error("Google Drive permission was not granted. Your device copy is safe."));
+          return;
+        }
+        resolve({
+          accessToken: response.access_token,
+          expiresAt: Date.now() + (Number(response.expires_in) || 3600) * 1000 - 60000,
+        });
+      },
+      error_callback: () =>
+        reject(Error("Google sign-in was closed or blocked. Try connecting again.")),
+    });
+    client.requestAccessToken({ prompt: "select_account" });
+  });
+}
+export class DriveAuthError extends Error {}
+async function driveRequest(
+  session: DriveSession,
+  url: string,
+  signal: AbortSignal,
+  init: RequestInit = {},
+) {
+  if (Date.now() >= session.expiresAt)
+    throw new DriveAuthError("Reconnect Google to continue syncing.");
+  const response = await fetch(url, {
+    ...init,
+    headers: { ...init.headers, Authorization: `Bearer ${session.accessToken}` },
+    cache: "no-store",
+    credentials: "omit",
+    redirect: "error",
+    signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]),
+  });
+  if (response.status === 401) throw new DriveAuthError("Reconnect Google to continue syncing.");
+  if (!response.ok)
+    throw Error("Google Drive could not sync. Check permissions, storage, and your connection.");
+  return response;
+}
+const fileSchema = z.object({ id: z.string().regex(/^[\w-]+$/), name: z.string() });
+
+export async function syncGoogleDrive(
+  session: DriveSession,
+  recovery: string,
+  deviceId: string,
+  local: Library,
+  signal: AbortSignal,
+): Promise<Library> {
+  if (!navigator.locks)
+    throw Error("Google sync needs a browser with Web Locks support. Use a local backup here.");
+  // One writer per browser; separate device files preserve simultaneous offline edits.
+  return navigator.locks.request("nest-google-drive-sync", { signal }, async () => {
+    const key = await importRecoveryKey(recovery);
+    const files: z.infer<typeof fileSchema>[] = [];
+    let pageToken = "";
+    do {
+      const query = new URLSearchParams({
+        spaces: "appDataFolder",
+        q: "trashed = false and appProperties has { key='nestSync' and value='v1' }",
+        fields: "nextPageToken,files(id,name)",
+        pageSize: "100",
+        ...(pageToken ? { pageToken } : {}),
+      });
+      const response = await driveRequest(session, `${API}?${query}`, signal);
+      const page = z
+        .object({ nextPageToken: z.string().optional(), files: z.array(fileSchema) })
+        .parse(await response.json());
+      files.push(...page.files);
+      if (files.length > 200)
+        throw Error(
+          "This Drive library has too many device snapshots. Export a backup before continuing.",
+        );
+      pageToken = page.nextPageToken || "";
+    } while (pageToken);
+    files.sort((a, b) => a.id.localeCompare(b.id));
+    let merged = personalLibrary(local);
+    const name = `nest-sync-v1-${deviceId}.json`;
+    let own: { id: string; library: Library } | undefined;
+    for (const file of files) {
+      const response = await driveRequest(session, `${API}/${file.id}?alt=media`, signal);
+      if (Number(response.headers.get("content-length")) > MAX_BACKUP_BYTES)
+        throw Error("A Drive snapshot exceeds the 20 MB file limit.");
+      const text = await response.text();
+      if (new TextEncoder().encode(text).byteLength > MAX_BACKUP_BYTES)
+        throw Error("A Drive snapshot exceeds the 20 MB file limit.");
+      let library: Library;
+      try {
+        library = librarySchema.parse(await decryptData(JSON.parse(text), key, "drive"));
+      } catch {
+        // Never overwrite an existing library with a new/wrong key or a partial restore.
+        throw Error(
+          "An existing Drive library could not be unlocked. Use its original recovery key; no Drive data was changed.",
+        );
+      }
+      merged = mergeLibrary(merged, personalLibrary(library));
+      if (file.name === name) own = { id: file.id, library };
+    }
+    merged = librarySchema.parse({
+      bookmarks: merged.bookmarks.toSorted((a, b) => a.id.localeCompare(b.id)),
+      lists: merged.lists.toSorted((a, b) => a.id.localeCompare(b.id)),
+    });
+    signal.throwIfAborted();
+    if (!own || JSON.stringify(own.library) !== JSON.stringify(merged)) {
+      const encrypted = JSON.stringify(await encryptData(merged, key, "drive"));
+      signal.throwIfAborted();
+      if (own) {
+        await driveRequest(
+          session,
+          `https://www.googleapis.com/upload/drive/v3/files/${own.id}?uploadType=media`,
+          signal,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: encrypted,
+          },
+        );
+      } else {
+        const boundary = `nest_${crypto.randomUUID()}`;
+        const metadata = JSON.stringify({
+          name,
+          parents: ["appDataFolder"],
+          appProperties: { nestSync: "v1" },
+        });
+        await driveRequest(
+          session,
+          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",
+          signal,
+          {
+            method: "POST",
+            headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
+            body: `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${encrypted}\r\n--${boundary}--`,
+          },
+        );
+      }
+    }
+    return merged;
+  });
+}

@@ -69,11 +69,11 @@ export const faqs = [
   {
     question: "How does syncing work?",
     answer:
-      "Cloud sync is optional and requires a connected Neon database on the deployment. You pair your own devices with a private recovery key. Your local library works without sync. The key cannot be recovered if you lose it, and synced data is not end-to-end encrypted.",
+      "Optional Google Drive sync encrypts your library on your device. Pair devices with the same Google account and recovery key, and reconnect Google when its session expires. Password-protected local backups also restore on other devices. Legacy Nest cloud sync requires a Neon database and is not end-to-end encrypted. Lost keys and backup passwords cannot be recovered.",
   },
   {
     question: "How does Nest identify broken links?",
     answer:
-      "When cloud sync and scheduled checks are configured, Nest checks saved links in daily batches. Two missing-page responses, such as 404 or 410, confirm a broken link. Temporary blocks and timeouts are treated as uncertain, and a healthy response restores a confirmed link.",
+      "When legacy Nest cloud sync and scheduled checks are configured, Nest checks saved links in daily batches. Two missing-page responses, such as 404 or 410, confirm a broken link. Temporary blocks and timeouts are treated as uncertain, and a healthy response restores a confirmed link.",
   },
 ];

@@ -8,6 +8,10 @@ export default defineConfig({
   timeout: 45000,
   projects: [
     { name: "chromium", use: { browserName: "chromium" } },
-    { name: "webkit", testMatch: "**/page-edges.spec.ts", use: { browserName: "webkit" } },
+    {
+      name: "webkit",
+      testMatch: "**/{page-edges,sync-data}.spec.ts",
+      use: { browserName: "webkit" },
+    },
   ],
 });

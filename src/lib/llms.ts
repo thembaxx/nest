@@ -3,7 +3,7 @@ export const llmsText = `# Nest
 
 > Nest is a smart bookmark manager: a calmer home for saved links, ideas, and rabbit holes. Good things, kept close.
 
-Nest is an installable web app that saves a bookmark library on the user's device. Core bookmarking works without an account or an AI download. Optional local models run in the browser through WebGPU. Optional cloud sync and scheduled link checking need a connected Neon database.
+Nest is an installable web app that saves a bookmark library on the user's device. Core bookmarking works without an account or an AI download. Optional local models run in the browser through WebGPU. Optional Google Drive sync encrypts the library on the device. Password-protected backups support device transfer without an account. Legacy server sync and scheduled link checking need a connected Neon database.
 
 ## Public pages
 
@@ -24,7 +24,7 @@ Nest is an installable web app that saves a bookmark library on the user's devic
 - Browse the saved library offline after the app and its assets have loaded. Destination pages are not downloaded.
 - Optionally download SmolLM2 360M, Llama 3.2 1B, or Qwen 2.5 1.5B. Download sizes and memory guidance appear in Settings.
 - Use optional local AI for finding links and proposing favorite, read, archive, or collection changes. The user previews changes before applying them.
-- Pair devices with a private recovery key after cloud storage is configured. Scheduled checks collect repeatedly missing pages in Broken links.
+- Pair devices with the same Google account and recovery key using optional encrypted Google Drive sync. Reconnect Google after reload or token expiry. Password-protected backups can be previewed and restored on other devices. Legacy server sync supports scheduled link checks and is not end-to-end encrypted.
 
 ## Accuracy and access
 
@@ -45,7 +45,7 @@ Duplicate detection compares normalized URL keys, removes common tracking parame
 
 Core search matches saved titles, descriptions, URLs, topics, tags, and notes, with a small synonym vocabulary. Topic filters, collection filters, newest/oldest/title sorting, favorites, read-later, and archive are available without a model. The optional connection view uses Three.js to show bookmarks grouped by topic, with an accessible list fallback.
 
-Every collection appears on the dashboard, with collection search and name/count/recent sorting. Use Manage collection or the options button beside a sidebar collection to rename or recolor it, export its contents as JSON, or remove just the collection while retaining its bookmarks. Add saved bookmarks opens a searchable picker with multi-selection and favorites. Inside a collection, a bookmark's folder-minus action removes only that membership, keeping the link in the library. Open Edit bookmark to rename its title or edit its topic, tags, notes, and collection membership. List view supports swipe gestures for read and favorite actions. Deleted items can be restored in Settings > Sync & data. Editing a sample turns it into a personal bookmark. JSON export preserves active bookmarks' Nest metadata and collections. HTML export is flat and portable to browsers. Untouched samples and trash are omitted from exports.
+Every collection appears on the dashboard, with collection search and name/count/recent sorting. Use Manage collection or the options button beside a sidebar collection to rename or recolor it, export its contents as JSON, or remove just the collection while retaining its bookmarks. Add saved bookmarks opens a searchable picker with multi-selection and favorites. Inside a collection, a bookmark's folder-minus action removes only that membership, keeping the link in the library. Open Edit bookmark to rename its title or edit its topic, tags, notes, and collection membership. List view supports swipe gestures for read and favorite actions. Deleted items can be restored in Settings > Sync & data. Editing a sample turns it into a personal bookmark. Full JSON and encrypted .nest backups preserve personal bookmarks, collections, notes, trash, and safe preferences. Credentials and untouched samples are excluded. Restore in Sync & data previews and merges the backup, preserving newer changes. Older JSON exports are accepted. HTML export remains flat and includes active links only.
 
 ## Optional local AI
 
@@ -57,7 +57,9 @@ The model may propose search, favorite, archive, read, or collection actions. ID
 
 ## Sync, link checks, and recovery
 
-Cloud sync is optional. A site owner must connect a Neon Postgres database to the Vercel deployment and configure a cron secret for scheduled checks. Until then, local bookmarking works and sync reports that setup is needed.
+Google Drive sync encrypts the library on the device with AES-256-GCM and stores separate device snapshots in Google’s hidden appDataFolder using only drive.appdata permission. The deployment needs a public Google OAuth Web client ID with authorized JavaScript origins. Pair a new device with the original recovery key and the same Google account. Access tokens stay in memory; reconnect after reopening Nest or token expiry. Google can see request metadata but receives encrypted library contents. Lost keys cannot be recovered. Server link checks cannot inspect encrypted libraries. Local encrypted backups use a password of at least 12 characters, PBKDF2-SHA256 with 600,000 iterations, and AES-256-GCM. Restore accepts files up to 20 MB.
+
+Legacy Nest cloud sync is optional and is not end-to-end encrypted. A site owner must connect a Neon Postgres database to the Vercel deployment and configure a cron secret for scheduled checks. Until then, local bookmarking works and sync reports that setup is needed.
 
 Each library uses a randomly generated 256-bit recovery key. Only its SHA-256 hash identifies the vault on the server; the recovery key itself is stored on the user's device. Anyone who has the key can access that library. Pair another device by pasting the same key into its Nest settings. There is no password-reset or account-recovery service. Synced bookmark data is not end-to-end encrypted.
 
