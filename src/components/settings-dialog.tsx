@@ -1,8 +1,6 @@
 "use client";
 import { useState } from "react";
 import {
-  Cloud,
-  Copy,
   Download,
   Check,
   CircleNotch as LoaderCircle,
@@ -10,16 +8,13 @@ import {
   Sun,
   Moon,
   Trash as Trash2,
-  ArrowsClockwise as RefreshCw,
   Shield,
-  ArrowUpRight,
-  ArrowCounterClockwise as RotateCcw,
   DeviceMobile as Smartphone,
 } from "@phosphor-icons/react";
 import { Modal } from "./ui";
 import { useLibrary } from "./library-provider";
 import { models, loadModel, removeModel } from "@/lib/ai";
-import { exportHtml } from "@/lib/bookmarks";
+import { SyncSettings } from "./sync-settings";
 import type { Settings } from "@/lib/types";
 export function SettingsDialog({
   onClose,
@@ -30,60 +25,12 @@ export function SettingsDialog({
   onInstall: () => void;
   initialTab?: string;
 }) {
-  const { library, settings, setSettings, setLibrary, syncState, sync, toast } = useLibrary();
+  const { settings, setSettings, toast } = useLibrary();
   const [tab, setTab] = useState(initialTab);
-  const [key, setKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
   const [modelBusy, setModelBusy] = useState("");
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
-  const [checking, setChecking] = useState(false);
-  const [cloudReady, setCloudReady] = useState<boolean | null>(null);
-  function download(format: "json" | "html") {
-    const data =
-      format === "json"
-        ? JSON.stringify(
-            {
-              bookmarks: library.bookmarks.filter((b) => !b.demo && !b.deletedAt),
-              lists: library.lists.filter((l) => !l.deletedAt),
-            },
-            null,
-            2,
-          )
-        : exportHtml(library);
-    const url = URL.createObjectURL(
-      new Blob([data], { type: format === "json" ? "application/json" : "text/html" }),
-    );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `nest-bookmarks-${new Date().toISOString().slice(0, 10)}.${format}`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-  async function enableSync() {
-    setChecking(true);
-    setError("");
-    try {
-      const r = await fetch("/api/health");
-      const data = await r.json();
-      setCloudReady(data.sync);
-      if (!data.sync) {
-        setError(
-          "Cloud sync is waiting for a database connection. Your bookmarks are saved on this device.",
-        );
-        return;
-      }
-      const bytes = crypto.getRandomValues(new Uint8Array(32));
-      setSettings({ syncKey: [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("") });
-      setShowKey(true);
-      toast("Cloud sync enabled. Keep a copy of your recovery key.");
-    } catch {
-      setError("Could not reach the server. Try again when you’re online.");
-    } finally {
-      setChecking(false);
-    }
-  }
   async function model(id: string) {
     setModelBusy(id);
     setError("");
@@ -101,7 +48,6 @@ export function SettingsDialog({
       setModelBusy("");
     }
   }
-  const trash = library.bookmarks.filter((b) => b.deletedAt && !b.demo);
   return (
     <Modal
       title="Make yourself at home."
@@ -266,162 +212,7 @@ export function SettingsDialog({
           </div>
         </>
       ) : (
-        <>
-          <div className="settings-heading">
-            <h3>Your library, wherever you land.</h3>
-            <p>Sync with a private recovery key. No account or password to remember.</p>
-          </div>
-          <div className="sync-panel">
-            <Cloud size={26} />
-            <div>
-              <strong>
-                {settings.syncKey
-                  ? "Cloud sync is enabled"
-                  : "Start with this device. Grow from here."}
-              </strong>
-              <p>
-                {settings.syncKey
-                  ? `Status: ${syncState === "synced" ? "Up to date" : syncState === "syncing" ? "Syncing…" : syncState === "unconfigured" ? "Database connection needed" : syncState === "error" ? "Could not sync — will retry" : syncState === "offline" ? "Offline — changes will sync later" : "Ready to sync"}`
-                  : "Your library is already saved in this browser. Cloud sync keeps your own bookmarks together across devices."}
-              </p>
-            </div>
-            {settings.syncKey ? (
-              <button className="icon-button" aria-label="Sync now" onClick={() => void sync()}>
-                <RefreshCw size={18} className={syncState === "syncing" ? "spin" : ""} />
-              </button>
-            ) : (
-              <button
-                className="button primary"
-                disabled={checking}
-                onClick={() => void enableSync()}
-              >
-                {checking ? <LoaderCircle size={16} className="spin" /> : null} Enable sync
-              </button>
-            )}
-          </div>
-          {settings.syncKey && (
-            <>
-              <button className="text-button" onClick={() => setShowKey(!showKey)}>
-                {showKey ? "Hide" : "Show"} my recovery key
-              </button>
-              {showKey && (
-                <div className="recovery-key">
-                  <code>{settings.syncKey}</code>
-                  <button
-                    className="icon-button"
-                    aria-label="Copy recovery key"
-                    onClick={() =>
-                      void navigator.clipboard
-                        .writeText(settings.syncKey!)
-                        .then(() => toast("Recovery key copied. Store it somewhere safe."))
-                        .catch(() => toast("Select and copy the key above."))
-                    }
-                  >
-                    <Copy size={17} />
-                  </button>
-                </div>
-              )}
-              <p className="small muted">
-                This key grants access to your library. Keep it safe and paste it into Nest on your
-                other devices. It cannot be recovered if lost.
-              </p>
-              <button
-                className="text-button"
-                onClick={() => {
-                  setSettings({ syncKey: undefined });
-                  toast("Sync disconnected. Your device copy is still here.");
-                }}
-              >
-                Disconnect this device
-              </button>
-            </>
-          )}
-          <label className="field-label" htmlFor="recovery">
-            Already have a Nest recovery key?
-          </label>
-          <div className="inline-input">
-            <input
-              id="recovery"
-              type="password"
-              autoComplete="off"
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              placeholder="Paste your recovery key"
-            />
-            <button
-              className="button secondary"
-              disabled={!/^[a-f0-9]{64}$/.test(key.trim())}
-              onClick={() => {
-                setSettings({ syncKey: key.trim() });
-                setKey("");
-                toast("Connecting your library…");
-              }}
-            >
-              Connect <ArrowUpRight size={15} />
-            </button>
-          </div>
-          {cloudReady === false && (
-            <p className="small muted">
-              For the site owner: connect a free Neon database in the Vercel project’s Storage tab,
-              then retry.
-            </p>
-          )}
-          <div className="setting-row">
-            <div>
-              <h4>Keep a copy for yourself</h4>
-              <p>JSON keeps your collections, tags, and notes. HTML works with any browser.</p>
-            </div>
-            <div className="flex-gap">
-              <button className="button secondary" onClick={() => download("json")}>
-                JSON <Download size={14} />
-              </button>
-              <button className="button secondary" onClick={() => download("html")}>
-                HTML <Download size={14} />
-              </button>
-            </div>
-          </div>
-          {library.bookmarks.some((b) => b.demo) && (
-            <div className="setting-row">
-              <div>
-                <h4>A fresh little canvas</h4>
-                <p>Remove the sample bookmarks whenever you’re ready.</p>
-              </div>
-              <button
-                className="button secondary"
-                onClick={() => {
-                  setLibrary((s) => ({ ...s, bookmarks: s.bookmarks.filter((b) => !b.demo) }));
-                  toast("Sample bookmarks cleared. Make yourself at home.");
-                }}
-              >
-                Clear samples
-              </button>
-            </div>
-          )}
-          {trash.length > 0 && (
-            <div className="trash-list">
-              <h4>Recently removed · {trash.length}</h4>
-              {trash.map((b) => (
-                <div key={b.id}>
-                  <span>{b.title}</span>
-                  <button
-                    className="text-button"
-                    onClick={() => {
-                      setLibrary((s) => ({
-                        ...s,
-                        bookmarks: s.bookmarks.map((x) =>
-                          x.id === b.id ? { ...x, deletedAt: undefined, updatedAt: Date.now() } : x,
-                        ),
-                      }));
-                      toast("Bookmark restored.");
-                    }}
-                  >
-                    <RotateCcw size={14} /> Restore
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+        <SyncSettings />
       )}
       {error && (
         <p className="error" role="alert">

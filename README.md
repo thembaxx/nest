@@ -47,6 +47,8 @@ Next.js App Router, TypeScript, Tailwind CSS 4, Motion, IndexedDB, Three.js, Pix
 - Bulk link extraction with metadata fetching, topic suggestions, tracking-insensitive duplicate detection, search, topic filters, sorting, grid/list views, favorites, read-later, archive, trash restoration, tags, and personal notes.
 - Custom collections and imports from Netscape HTML (Chrome, Safari, Edge, Brave, Firefox), browser JSON, or a Nest JSON backup. HTML exports open in other browsers; JSON keeps Nest metadata.
 - Local storage in IndexedDB with a localStorage fallback; a sample library explicitly marked in the UI. Untouched samples never sync and are omitted from export; editing a sample keeps it as a personal bookmark.
+- Versioned local JSON backups with a restore preview preserve IDs, preferences, empty collections, and trash. Restore works offline and accepts older Nest exports. Save files locally or in any personal cloud folder.
+- Optional Google Drive sync stores private app-data snapshots in each user’s Google account, without a Nest database. Set `NEXT_PUBLIC_GOOGLE_CLIENT_ID`; users reconnect Google authorization after a reload or token expiry. [Free sync and setup guide](docs/sync.md).
 - Optional cloud sync using a 256-bit recovery key. Only its SHA-256 hash identifies the vault on the server. The key is a bearer credential: keep it safe, share only between your own devices, and use HTTPS. There is no account recovery. Data is stored in the database, not end-to-end encrypted.
 - Per-record last-write-wins sync with deletion tombstones, offline queues, periodic retries, and visibility-triggered refresh. Concurrent edits to the same bookmark resolve to its newest version. Device clocks should be reasonably accurate.
 - Optional on-device models: SmolLM2 360M, Llama 3.2 1B, and Qwen 2.5 1.5B. No model downloads automatically. Search and command planning use WebGPU via WebLLM in a worker; model assets cache in browser storage. Commands are validated against existing IDs and previewed before execution. No generated code executes, and the model cannot delete bookmarks. Uses basic local retrieval across the library, then asks the model to interpret up to 24 relevant candidates within a 4,096-token context. Browser support and available GPU memory vary.
@@ -55,7 +57,7 @@ Next.js App Router, TypeScript, Tailwind CSS 4, Motion, IndexedDB, Three.js, Pix
 
 ## Vercel setup
 
-The application works locally without any cloud credentials. For sync and scheduled checks:
+The application works locally without any cloud credentials. Local backup/restore needs no setup. For Google Drive sync, follow [the free sync guide](docs/sync.md). For the existing recovery-key sync and scheduled checks:
 
 1. Import `thembaxx/nest` in Vercel; choose Next.js and the repository root.
 2. In the project Storage tab, connect a **free Neon** database. The integration injects `DATABASE_URL`. `POSTGRES_URL` is also accepted. No database secret belongs in a `NEXT_PUBLIC_` variable.
@@ -71,7 +73,7 @@ Metadata and link requests allow only public HTTP(S) addresses on standard ports
 
 ## Limits and verification
 
-HTML imports preserve folder names as collections. HTML export is flat; use JSON for a complete backup. A browser cannot directly read another browser’s bookmark database, so use its export function. Offline support covers the app and bookmark metadata, not full copies of destination pages. WebLLM’s first download requires internet and compatible WebGPU hardware; browser storage eviction can require downloading again. PWA install and receiving shared links depend on browser support. Three.js has an accessible list fallback.
+HTML imports preserve folder names as collections. HTML export is flat; use Settings → Sync & data → JSON for a versioned backup and Choose backup to restore it. JSON includes trash and preferences, excludes credentials and model assets, and has a 20 MB limit. Restores merge by stable record ID and latest update; they do not roll back newer local edits. A browser cannot directly read another browser’s bookmark database, so use its export function. Offline support covers the app and bookmark metadata, not full copies of destination pages. WebLLM’s first download requires internet and compatible WebGPU hardware; browser storage eviction can require downloading again. PWA install and receiving shared links depend on browser support. Three.js has an accessible list fallback.
 
 Automated checks cover link extraction, canonicalization, deduplication, safe exports, sync conflict/tombstone merging, URL/IP validation, schema validation, browser imports, library interactions, mobile layout, theme changes, and offline reloads. Actual GPU model inference and cloud sync require their corresponding hardware/service and are reported separately in release notes.
 

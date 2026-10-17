@@ -127,19 +127,21 @@ const sections = [
     body: (
       <>
         <p>
-          Your library is saved in this browser first. Cloud sync needs a Neon database connected to
-          the deployment. When it’s available, open{" "}
-          <strong>Settings → Sync & data → Enable sync</strong>.
+          Your library is saved in this browser first. Open <strong>Settings → Sync & data</strong>{" "}
+          to connect Google Drive when available, or use recovery-key sync through this site’s
+          optional Neon database.
         </p>
         <p>
-          Store the recovery key somewhere safe, then paste the same key into Nest on another
-          device. Anyone who has that key can access the synced library. Lost keys cannot be
-          recovered, and cloud data is not end-to-end encrypted.
+          For Google Drive, connect the same Google account on each device. Sync runs while Nest is
+          open and authorized; reconnect after a reload or when access expires. For recovery-key
+          sync, store the key somewhere safe, then paste it into Nest on another device. Anyone who
+          has that key can access the synced library. Lost keys cannot be recovered, and cloud data
+          is not end-to-end encrypted.
         </p>
         <p>
-          After sync and scheduled checks are configured, confirmed missing pages appear in Broken
-          links. Checks run in daily batches; temporary failures get another chance. Large libraries
-          take multiple runs.
+          After recovery-key sync and scheduled checks are configured, confirmed missing pages
+          appear in Broken links. Checks run in daily batches; temporary failures get another
+          chance. Large libraries take multiple runs.
         </p>
       </>
     ),
@@ -171,11 +173,16 @@ const sections = [
       <>
         <p>
           Open <strong>Settings → Sync & data</strong> to export. <strong>JSON</strong> keeps your
-          active bookmarks, collections, tags, and notes. <strong>HTML</strong> is a flat bookmark
-          export that other browsers can import. Samples and trash are left out.
+          bookmarks, collections, tags, notes, trash, and preferences. Credentials and sample
+          bookmarks are excluded. <strong>HTML</strong> is a flat export of active bookmarks that
+          other browsers can import.
         </p>
         <p>
-          Keep an occasional JSON backup. Browser storage can be cleared or evicted by your device.
+          Save the JSON file locally or in your own cloud folder. On a new device, choose{" "}
+          <strong>Choose backup</strong> in Sync & data, review the preview, then select{" "}
+          <strong>Restore backup</strong>. Existing records are merged by their latest update, so
+          repeated restores keep the same IDs. Browser storage can be cleared or evicted by your
+          device.
         </p>
       </>
     ),

@@ -51,6 +51,7 @@ export type Settings = {
   theme: "system" | "light" | "dark";
   autoSort: boolean;
   syncKey?: string;
+  syncProvider?: "local" | "google" | "nest";
   onboarded: boolean;
   model?: string;
   healthChecks: boolean;

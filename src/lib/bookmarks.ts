@@ -87,11 +87,22 @@ export function makeBookmark(url: string, meta: Partial<Bookmark> = {}): Bookmar
   };
 }
 export function mergeLibrary(a: Library, b: Library): Library {
-  function merge<T extends { id: string; updatedAt: number }>(one: T[], two: T[]) {
+  function merge<T extends { id: string; updatedAt: number; deletedAt?: number }>(
+    one: T[],
+    two: T[],
+  ) {
     const map = new Map(one.map((x) => [x.id, x]));
     for (const item of two) {
       const old = map.get(item.id);
-      if (!old || item.updatedAt >= old.updatedAt) map.set(item.id, item);
+      // Equal device timestamps must converge regardless of snapshot arrival order.
+      const winsTie =
+        old &&
+        item.updatedAt === old.updatedAt &&
+        (Boolean(item.deletedAt) !== Boolean(old.deletedAt)
+          ? Boolean(item.deletedAt)
+          : JSON.stringify(item, Object.keys(item).sort()) >
+            JSON.stringify(old, Object.keys(old).sort()));
+      if (!old || item.updatedAt > old.updatedAt || winsTie) map.set(item.id, item);
     }
     return [...map.values()];
   }
@@ -147,6 +158,10 @@ export function parseImport(
   };
   if (filename.toLowerCase().endsWith(".json")) {
     const data = JSON.parse(text);
+    if (data?.format === "nest-backup")
+      throw Error(
+        "Restore this backup in Settings → Sync & data → Choose backup to preserve IDs and trash.",
+      );
     if (data.bookmarks && Array.isArray(data.bookmarks)) {
       for (const b of data.bookmarks) {
         const url = validUrl(b.url || "");
