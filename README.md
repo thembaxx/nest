@@ -1,5 +1,23 @@
 # Nest
 
+An offline-first personal bookmark library with collections, search, imports, exports and optional cloud sync.
+
+[Browse the source](https://github.com/thembaxx/nest)
+
+## Engineering highlights
+
+IndexedDB persistence, duplicate detection and per-record sync reconciliation. Recovery keys are bearer credentials; cloud storage is not end-to-end encrypted.
+
+## Technology
+
+Declared in [package.json](package.json): Next.js `^16.0.0` · React `^19.2.0` · TypeScript `^5.9.0` · Tailwind CSS `^4.1.0` · Three.js `^0.180.0` · Motion `^12.23.0` · PixiJS `^8.13.0` · WebLLM `^0.2.79` · Zod `^4.0.0`.
+
+**Quality tooling:** `lint`, `format:check`, `typecheck`, `test` scripts are available. See the setup guide below for prerequisites; this documentation pass does not assert that those checks were run.
+
+---
+
+## Project guide
+
 Good things, kept close. A personal, offline-first bookmark app inspired by quiet editorial layouts, pastel collections, and botanical details.
 
 ## Run
