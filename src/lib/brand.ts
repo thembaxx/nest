@@ -69,7 +69,7 @@ export const faqs = [
   {
     question: "How does syncing work?",
     answer:
-      "Cloud sync is optional and requires a connected Neon database on the deployment. You pair your own devices with a private recovery key. Your local library works without sync. The key cannot be recovered if you lose it, and synced data is not end-to-end encrypted.",
+      "Sync is optional. Google Drive uses private app data in your Google account when the site has an OAuth client configured; reconnect after a reload or token expiry. Recovery-key sync uses the site’s optional Neon database. You can also download a JSON backup and restore it on another device without any cloud setup. Recovery keys cannot be recovered if lost, and cloud data is not end-to-end encrypted.",
   },
   {
     question: "How does Nest identify broken links?",

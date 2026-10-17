@@ -155,8 +155,8 @@ export default function AboutPage() {
         <div>
           <p>
             Core bookmarking works without an AI download or a cloud account. Your library stays on
-            your device first. Add cloud sync when a database is connected, or download a local
-            model when your browser supports it.
+            your device first. Keep a portable JSON backup, add Google Drive or recovery-key sync
+            when configured, or download a local model when your browser supports it.
           </p>
           <Link href="/privacy">
             See how your data is handled <ArrowUpRight size={15} />

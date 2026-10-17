@@ -65,6 +65,7 @@ export function NestApp() {
     | "add"
     | "import"
     | "settings"
+    | "sync-settings"
     | "ai-settings"
     | "welcome"
     | "assistant"
@@ -364,7 +365,7 @@ export function NestApp() {
             <strong>{view.startsWith("list:") ? "Collection" : "My library"}</strong>
           </div>
           <div className="topbar-right">
-            <button className="sync-status" onClick={() => setDialog("settings")}>
+            <button className="sync-status" onClick={() => setDialog("sync-settings")}>
               {!online ? <CloudOff size={15} /> : <Cloud size={15} />}
               <span>
                 {!online
@@ -373,11 +374,13 @@ export function NestApp() {
                     ? "All tucked away"
                     : syncState === "syncing"
                       ? "Syncing…"
-                      : syncState === "unconfigured"
-                        ? "Sync needs setup"
-                        : syncState === "error"
-                          ? "Sync will retry"
-                          : "Saved on this device"}
+                      : syncState === "reconnect"
+                        ? "Reconnect Google Drive"
+                        : syncState === "unconfigured"
+                          ? "Sync needs setup"
+                          : syncState === "error"
+                            ? "Sync will retry"
+                            : "Saved on this device"}
               </span>
               <i className={!online ? "offline" : ""} />
             </button>
@@ -683,9 +686,11 @@ export function NestApp() {
           }}
         />
       )}
-      {(dialog === "settings" || dialog === "ai-settings") && (
+      {(dialog === "settings" || dialog === "ai-settings" || dialog === "sync-settings") && (
         <SettingsDialog
-          initialTab={dialog === "ai-settings" ? "ai" : "general"}
+          initialTab={
+            dialog === "ai-settings" ? "ai" : dialog === "sync-settings" ? "sync" : "general"
+          }
           onClose={close}
           onInstall={() => void install()}
         />

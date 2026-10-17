@@ -35,7 +35,17 @@ export default function PrivacyPage() {
           and runtime hosts, which can see the download request. Model assets are cached in browser
           storage and can be removed in Settings.
         </p>
-        <h2>Sync, when you choose it.</h2>
+        <h2>Google Drive, when you choose it.</h2>
+        <p>
+          Google Drive sync sends your library directly from your browser to Nest’s private app-data
+          folder in your Google account over HTTPS. Nest requests only app-data access, not access
+          to your other files or email. Access tokens stay in memory and are excluded from backups;
+          reconnect after reloading Nest or when access expires. The site’s server and Neon database
+          are not part of this sync path. Google stores the cloud copy; it is not end-to-end
+          encrypted. Disconnecting stops this device’s sync and keeps existing copies. You can
+          remove the application’s access and hidden data through Google’s settings.
+        </p>
+        <h2>Recovery-key sync, when you choose it.</h2>
         <p>
           Cloud sync is optional and needs a connected Neon database. It sends bookmark records and
           collections to the deployment’s server and database over HTTPS. Sync data is not
@@ -57,8 +67,10 @@ export default function PrivacyPage() {
         <h2>Keep a little backup.</h2>
         <p>
           Browser storage can be cleared by you, your browser, or your device. Export JSON to keep a
-          portable copy of active bookmarks and collections. Installing the PWA or downloading a
-          model doesn’t guarantee that browser storage will be permanent.
+          portable copy of bookmarks, collections, trash, and preferences. Restore a Nest JSON
+          backup in Settings → Sync & data. Files contain private notes and are not encrypted;
+          recovery keys, Google tokens, and model downloads are excluded. Installing the PWA or
+          downloading a model doesn’t guarantee that browser storage will be permanent.
         </p>
         <h2>About public pages.</h2>
         <p>
