@@ -9,12 +9,13 @@ import {
   Moon,
   Trash as Trash2,
   Shield,
+  ArrowCounterClockwise as RotateCcw,
   DeviceMobile as Smartphone,
 } from "@phosphor-icons/react";
 import { Modal } from "./ui";
 import { useLibrary } from "./library-provider";
 import { models, loadModel, removeModel } from "@/lib/ai";
-import { SyncSettings } from "./sync-settings";
+import { SyncDataSettings } from "./sync-data-settings";
 import type { Settings } from "@/lib/types";
 export function SettingsDialog({
   onClose,
@@ -25,7 +26,7 @@ export function SettingsDialog({
   onInstall: () => void;
   initialTab?: string;
 }) {
-  const { settings, setSettings, toast } = useLibrary();
+  const { library, settings, setSettings, setLibrary, toast } = useLibrary();
   const [tab, setTab] = useState(initialTab);
   const [modelBusy, setModelBusy] = useState("");
   const [progress, setProgress] = useState(0);
@@ -48,6 +49,7 @@ export function SettingsDialog({
       setModelBusy("");
     }
   }
+  const trash = library.bookmarks.filter((b) => b.deletedAt && !b.demo);
   return (
     <Modal
       title="Make yourself at home."
@@ -107,7 +109,7 @@ export function SettingsDialog({
           />
           <Toggle
             title="Keep an eye on my links"
-            description="Check synced bookmarks weekly and collect repeatedly missing pages in Broken links. Runs daily in batches."
+            description="Check bookmarks using legacy Nest cloud sync. Encrypted Google Drive libraries stay private and are not checked by the server."
             value={settings.healthChecks}
             onChange={(v) => setSettings({ healthChecks: v })}
           />
@@ -212,7 +214,56 @@ export function SettingsDialog({
           </div>
         </>
       ) : (
-        <SyncSettings />
+        <>
+          <SyncDataSettings />
+          {library.bookmarks.some((b) => b.demo) && (
+            <div className="setting-row">
+              <div>
+                <h4>A fresh little canvas</h4>
+                <p>Remove the sample bookmarks whenever you’re ready.</p>
+              </div>
+              <button
+                className="button secondary"
+                onClick={() => {
+                  setLibrary((s) => ({ ...s, bookmarks: s.bookmarks.filter((b) => !b.demo) }));
+                  toast("Sample bookmarks cleared. Make yourself at home.");
+                }}
+              >
+                Clear samples
+              </button>
+            </div>
+          )}
+          {trash.length > 0 && (
+            <div className="trash-list">
+              <h4>Recently removed · {trash.length}</h4>
+              {trash.map((b) => (
+                <div key={b.id}>
+                  <span>{b.title}</span>
+                  <button
+                    className="text-button"
+                    onClick={() => {
+                      setLibrary((s) => ({
+                        ...s,
+                        bookmarks: s.bookmarks.map((x) =>
+                          x.id === b.id
+                            ? {
+                                ...x,
+                                deletedAt: undefined,
+                                updatedAt: Math.max(Date.now(), x.updatedAt + 1),
+                              }
+                            : x,
+                        ),
+                      }));
+                      toast("Bookmark restored.");
+                    }}
+                  >
+                    <RotateCcw size={14} /> Restore
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
       {error && (
         <p className="error" role="alert">

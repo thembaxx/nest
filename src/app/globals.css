@@ -148,4 +148,8 @@ html { scroll-padding-top: calc(var(--edge-top-size) + 12px); scroll-padding-bot
 .card-actions { display: inline-flex; gap: 7px; align-items: center; }
 .collection-unlink { margin: 18px 0 0; }
 
-.backup-preview>strong{display:block;overflow-wrap:anywhere}.backup-preview .flex-gap{margin-top:14px;flex-wrap:wrap}.backup-preferences{display:flex;align-items:center;gap:9px;margin:14px 0;font-size:12px}.backup-preferences input{width:16px;min-height:16px;accent-color:var(--green)}
+.sync-data-settings .small{line-height:1.8;margin:12px 0}.sync-data-settings .field-label{margin-top:16px}.sync-data-settings input{width:100%}.sync-data-settings .inline-input input{flex:1;width:auto}.backup-section{border-top:1px solid var(--line);margin-top:26px;padding-top:22px}.backup-section>.button{margin-top:14px}.backup-section>h4{margin-top:24px;font-weight:500}.backup-section .note-box .button{margin-top:14px}.legacy-sync{border-top:1px solid var(--line);margin-top:26px;padding-top:18px}.legacy-sync summary{cursor:pointer;font-size:12px}.sync-data-settings .sync-panel>div{min-width:0}.sync-data-settings input[type=file]{font-size:16px;padding:10px 0;overflow:hidden}.sync-data-settings .sync-panel>.button{flex-shrink:0}@media(max-width:700px){.sync-data-settings .inline-input{flex-wrap:wrap}.sync-data-settings .inline-input input{flex-basis:100%}.sync-data-settings .sync-panel>.button{margin-left:0}.sync-data-settings .sync-panel>div{min-width:160px}.sync-data-settings .flex-gap{flex-wrap:wrap}}
+
+.sync-data-settings .sync-panel output{display:block;font-size:10px;line-height:1.8;color:var(--muted);margin-top:5px}
+
+.sync-data-settings .restore-preferences{display:flex;align-items:center;gap:8px;font-size:12px;margin-top:12px}.sync-data-settings .restore-preferences input{width:auto;flex-shrink:0}

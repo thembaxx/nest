@@ -1,109 +1,152 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createBackup, parseBackup, restoreLibrary } from "../src/lib/backup";
+import { test } from "node:test";
+import {
+  createBackup,
+  encryptedBackup,
+  personalLibrary,
+  readBackup,
+  restoreLibrary,
+} from "../src/lib/backup";
 import { makeBookmark, mergeLibrary, parseImport } from "../src/lib/bookmarks";
-import { defaultSettings } from "../src/lib/types";
+import { decryptData, encryptData, importRecoveryKey, recoveryKey } from "../src/lib/encryption";
 import { seed } from "../src/lib/seed";
+import { defaultSettings } from "../src/lib/types";
 
-test("portable backups round-trip metadata, empty collections, and tombstones without credentials or samples", () => {
-  const bookmark = makeBookmark("https://example.com/notes", {
-    note: "Private notes",
-    tags: ["reading"],
-    favorite: true,
-    read: true,
-    archived: true,
-    listIds: ["folder"],
-    deletedAt: 20,
-    updatedAt: 20,
-  });
-  const lists = [
-    { id: "folder", name: "Research", color: "green", updatedAt: 10 },
-    { id: "empty", name: "Empty", color: "blue", updatedAt: 10 },
-    { id: "removed", name: "Removed", color: "blue", updatedAt: 20, deletedAt: 20 },
-  ];
-  const text = createBackup(
-    { bookmarks: [bookmark, seed.bookmarks[0]], lists },
+const bookmark = makeBookmark("https://example.com/private", {
+  id: "personal",
+  title: "Private field notes",
+  note: "A personal note",
+  tags: ["keep"],
+  listIds: ["notes"],
+  createdAt: 10,
+  updatedAt: 20,
+});
+const library = {
+  bookmarks: [bookmark, { ...bookmark, id: "trash", deletedAt: 30, updatedAt: 30 }],
+  lists: [{ id: "notes", name: "Field notes", color: "sage", updatedAt: 15 }],
+};
+
+test("backups preserve IDs, notes, trash and preferences without device credentials or samples", async () => {
+  const backup = createBackup(
+    {
+      bookmarks: [...seed.bookmarks, ...library.bookmarks],
+      lists: [...seed.lists, ...library.lists],
+    },
     {
       ...defaultSettings,
       theme: "dark",
-      autoSort: false,
-      syncKey: "secret-recovery-key",
-      model: "device-model",
-      syncProvider: "google",
+      syncKey: "server-secret",
+      driveKey: "drive-secret",
+      drivePendingKey: "pending-secret",
+      driveDeviceId: "device",
+      model: "local-model",
     },
   );
-  const backup = parseBackup(text);
-  assert.deepEqual(backup.library, { bookmarks: [bookmark], lists });
-  assert.deepEqual(backup.preferences, {
-    theme: "dark",
-    autoSort: false,
-    healthChecks: true,
-    effects: true,
-  });
-  for (const secret of [
-    "secret-recovery-key",
-    "syncKey",
-    "syncProvider",
-    "device-model",
-    "access_token",
-  ])
+  const text = JSON.stringify(backup);
+  for (const secret of ["server-secret", "drive-secret", "pending-secret", "device", "local-model"])
     assert.ok(!text.includes(secret));
-  assert.throws(() => parseImport(text, "backup.json"), /Settings/);
+  const restored = await readBackup(text, "");
+  assert.deepEqual(restored.library, library);
+  assert.equal(restored.preferences?.theme, "dark");
+  assert.equal(restored.library.bookmarks[1].deletedAt, 30);
 });
 
-test("restore keeps stable IDs, newer local edits, and removals across repeated restores", () => {
-  const original = makeBookmark("https://example.com/a", { updatedAt: 10, note: "Old" });
-  const local = { bookmarks: [{ ...original, note: "New", updatedAt: 30 }], lists: [] };
-  const removed = makeBookmark("https://example.com/b", { updatedAt: 40, deletedAt: 40 });
-  const backup = { bookmarks: [original, removed], lists: [] };
-  const restored = restoreLibrary(local, backup);
-  assert.equal(restored.bookmarks.length, 2);
-  assert.equal(restored.bookmarks[0].note, "New");
-  assert.equal(restored.bookmarks[1].deletedAt, 40);
-  assert.deepEqual(restoreLibrary(restored, backup), restored);
-  assert.equal(
-    restoreLibrary(
-      { bookmarks: [{ ...removed, deletedAt: undefined, updatedAt: 5 }], lists: [] },
-      backup,
-    ).bookmarks[0].deletedAt,
-    40,
+test("password-encrypted backups round-trip and reject wrong passwords and modified ciphertext", async () => {
+  const encrypted = await encryptedBackup(library, defaultSettings, "my long backup password");
+  const text = JSON.stringify(encrypted);
+  assert.ok(!text.includes(bookmark.url));
+  assert.ok(!text.includes(bookmark.note!));
+  assert.deepEqual((await readBackup(text, "my long backup password")).library, library);
+  await assert.rejects(readBackup(text, "an incorrect password"), /Could not open/);
+  const damaged = {
+    ...encrypted,
+    ciphertext: (encrypted.ciphertext[0] === "A" ? "B" : "A") + encrypted.ciphertext.slice(1),
+  };
+  await assert.rejects(readBackup(JSON.stringify(damaged), "my long backup password"));
+  await assert.rejects(encryptedBackup(library, defaultSettings, "short"), /12 characters/);
+});
+
+test("restore supports old JSON and validates versions, unsafe URLs and KDF cost before use", async () => {
+  assert.deepEqual((await readBackup(JSON.stringify(library), "")).library, library);
+  await assert.rejects(
+    readBackup(JSON.stringify({ ...createBackup(library, defaultSettings), version: 2 }), ""),
+  );
+  await assert.rejects(
+    readBackup(
+      JSON.stringify({ bookmarks: [{ ...bookmark, url: "javascript:alert(1)" }], lists: [] }),
+      "",
+    ),
+  );
+  await assert.rejects(
+    readBackup(
+      JSON.stringify({
+        format: "nest-encrypted",
+        kdf: { name: "PBKDF2-SHA256", iterations: 1e12, salt: "A".repeat(22) + "==" },
+      }),
+      "a long backup password",
+    ),
   );
 });
 
-test("legacy Nest exports restore without inventing settings; unsafe and future backups are rejected", () => {
-  const library = { bookmarks: [makeBookmark("https://example.com")], lists: [] };
-  assert.deepEqual(parseBackup(JSON.stringify(library)), { library });
-  assert.throws(() => parseBackup("bad JSON"), /valid JSON/);
-  assert.throws(
-    () => parseBackup(JSON.stringify({ format: "nest-backup", version: 2, ...library })),
-    /not supported/,
+test("full JSON backups also import through the existing browser-import flow without reviving trash", () => {
+  const imported = parseImport(
+    JSON.stringify(createBackup(library, defaultSettings)),
+    "backup.json",
   );
-  assert.throws(
-    () =>
-      parseBackup(
-        JSON.stringify({
-          bookmarks: [{ ...library.bookmarks[0], url: "javascript:alert(1)" }],
-          lists: [],
-        }),
-      ),
-    /Nest JSON backup/,
+  assert.equal(imported.bookmarks.length, 1);
+  assert.equal(imported.bookmarks[0].note, bookmark.note);
+  assert.equal(imported.lists[0].name, "Field notes");
+  assert.throws(() =>
+    parseImport(JSON.stringify({ format: "nest-backup", version: 2 }), "backup.json"),
   );
-  assert.throws(
-    () =>
-      parseBackup(
-        JSON.stringify({ bookmarks: [library.bookmarks[0], library.bookmarks[0]], lists: [] }),
-      ),
-    /duplicate record IDs/,
-  );
-  assert.throws(() => parseBackup(JSON.stringify({ roots: {} })), /Browser exports/);
 });
 
-test("equal-timestamp edits converge in both directions, and a removal wins an exact clock tie", () => {
-  const bookmark = makeBookmark("https://example.com", { updatedAt: 10 });
-  const a = { bookmarks: [{ ...bookmark, note: "A" }], lists: [] };
-  const b = { bookmarks: [{ ...bookmark, note: "B" }], lists: [] };
-  assert.deepEqual(mergeLibrary(a, b), mergeLibrary(b, a));
-  const removed = { bookmarks: [{ ...bookmark, deletedAt: 10 }], lists: [] };
-  assert.equal(mergeLibrary(a, removed).bookmarks[0].deletedAt, 10);
-  assert.equal(mergeLibrary(removed, a).bookmarks[0].deletedAt, 10);
+test("restoring an older backup keeps newer edits, deletions and bookmarks already on the device", async () => {
+  const newer = { ...bookmark, note: "A newer note", updatedAt: 50 };
+  const deleted = { ...library.bookmarks[1], updatedAt: 60, deletedAt: 60 };
+  const extra = makeBookmark("https://example.org/extra", { id: "extra" });
+  const restored = await readBackup(JSON.stringify(createBackup(library, defaultSettings)), "");
+  const merged = mergeLibrary({ bookmarks: [newer, deleted, extra], lists: [] }, restored.library);
+  assert.equal(merged.bookmarks.find((item) => item.id === "personal")?.note, "A newer note");
+  assert.equal(merged.bookmarks.find((item) => item.id === "trash")?.deletedAt, 60);
+  assert.ok(merged.bookmarks.some((item) => item.id === "extra"));
+  assert.deepEqual(personalLibrary(seed), { bookmarks: [], lists: [] });
+});
+
+test("Drive encryption uses fresh IVs, authenticates data and separates backup and sync contexts", async () => {
+  const key = await importRecoveryKey(recoveryKey());
+  const first = await encryptData(library, key, "drive");
+  const second = await encryptData(library, key, "drive");
+  assert.notEqual(first.iv, second.iv);
+  assert.deepEqual(await decryptData(first, key, "drive"), library);
+  await assert.rejects(decryptData(first, await importRecoveryKey(recoveryKey()), "drive"));
+  await assert.rejects(decryptData(first, key, "backup"));
+});
+
+test("previously shipped flat version-1 backups restore partial preferences, empty collections, and original IDs", async () => {
+  const previous = {
+    format: "nest-backup",
+    version: 1,
+    exportedAt: "2026-10-17T00:00:00.000Z",
+    ...library,
+    preferences: { theme: "dark" },
+  };
+  const restored = await readBackup(JSON.stringify(previous), "");
+  assert.deepEqual(restored.library, library);
+  assert.deepEqual(restored.preferences, { theme: "dark" });
+  assert.deepEqual(restoreLibrary(restored.library, restored.library), restored.library);
+  const noPreferences = { ...previous, preferences: undefined };
+  assert.equal((await readBackup(JSON.stringify(noPreferences), "")).preferences, undefined);
+});
+
+test("duplicate IDs are rejected and equal-time conflicts converge with deletions taking precedence", async () => {
+  await assert.rejects(
+    readBackup(JSON.stringify({ bookmarks: [bookmark, bookmark], lists: [] }), ""),
+  );
+  const one = { bookmarks: [{ ...bookmark, note: "First" }], lists: [] };
+  const two = { bookmarks: [{ ...bookmark, note: "Second" }], lists: [] };
+  assert.deepEqual(restoreLibrary(one, two), restoreLibrary(two, one));
+  const deleted = { bookmarks: [{ ...bookmark, deletedAt: 20 }], lists: [] };
+  assert.equal(restoreLibrary(one, deleted).bookmarks[0].deletedAt, 20);
+  assert.equal(restoreLibrary(deleted, one).bookmarks[0].deletedAt, 20);
 });

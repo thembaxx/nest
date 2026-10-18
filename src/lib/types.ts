@@ -52,6 +52,9 @@ export type Settings = {
   autoSort: boolean;
   syncKey?: string;
   syncProvider?: "local" | "google" | "nest";
+  driveKey?: string;
+  drivePendingKey?: string;
+  driveDeviceId?: string;
   onboarded: boolean;
   model?: string;
   healthChecks: boolean;

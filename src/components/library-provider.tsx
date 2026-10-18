@@ -20,13 +20,15 @@ import { mergeLibrary } from "@/lib/bookmarks";
 import { ingestBookmarks, type IngestOptions } from "@/lib/organize";
 import { prepareSyncLibrary } from "@/lib/sync";
 import { readLibrary, writeLibrary } from "@/lib/storage";
-import { restoreLibrary, type Backup } from "@/lib/backup";
+import { restoreLibrary } from "@/lib/backup";
+import { recoveryKey } from "@/lib/encryption";
 import {
+  authorizeGoogleDrive,
   activeSyncProvider,
-  GoogleDriveError,
-  requestGoogleAccess,
+  DriveAuthError,
+  DriveRequestError,
   syncGoogleDrive,
-  type GoogleAccess,
+  type DriveSession,
 } from "@/lib/google-drive";
 type SyncState =
   | "local"
@@ -42,6 +44,8 @@ type Context = {
   ready: boolean;
   syncState: SyncState;
   syncError: string;
+  lastSyncedAt: number | null;
+  driveConnected: boolean;
   online: boolean;
   toast: (message: string) => void;
   setSettings: (change: Partial<Settings>) => void;
@@ -53,9 +57,8 @@ type Context = {
     options?: IngestOptions,
   ) => { added: Bookmark[]; duplicates: number; filed: number; moved: number };
   sync: () => Promise<void>;
-  connectGoogle: (clientId: string) => Promise<void>;
-  disconnectSync: () => void;
-  restore: (backup: Backup, preferences: boolean) => void;
+  connectGoogle: (key?: string) => Promise<void>;
+  disconnectGoogle: () => void;
 };
 const LibraryContext = createContext<Context | null>(null);
 export function LibraryProvider({ children }: { children: ReactNode }) {
@@ -66,11 +69,13 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(true);
   const [syncState, setSyncState] = useState<SyncState>("local");
   const [syncError, setSyncError] = useState("");
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [driveConnected, setDriveConnected] = useState(false);
   const [message, setMessage] = useState("");
   const current = useRef(library);
   const settingsRef = useRef(settings);
-  const syncing = useRef(false);
-  const googleAccess = useRef<GoogleAccess | null>(null);
+  const operation = useRef<AbortController | null>(null);
+  const driveSession = useRef<DriveSession | null>(null);
   const retryAt = useRef(0);
   const quotaFailures = useRef(0);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -106,17 +111,22 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   }, []);
   const setSettings = useCallback((change: Partial<Settings>) => {
     const next = { ...settingsRef.current, ...change };
+    // Only one transport can send this library. Switching to legacy sync is explicit.
+    if (change.syncKey) {
+      next.driveKey = undefined;
+      next.syncProvider = "nest";
+      operation.current?.abort();
+      driveSession.current = null;
+      setDriveConnected(false);
+    }
     settingsRef.current = next;
     applySettings(next);
   }, []);
   useEffect(() => {
     if (!ready) return;
-    const t = setTimeout(() => {
-      void writeLibrary(library).catch(() =>
-        toast("Your device storage is full. Export a backup in Settings."),
-      );
-    }, 180);
-    return () => clearTimeout(t);
+    void writeLibrary(library).catch(() =>
+      toast("Your device storage is full. Export a backup in Settings."),
+    );
   }, [library, ready, toast]);
   useEffect(() => {
     if (!ready) return;
@@ -142,16 +152,10 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     return () => media.removeEventListener("change", change);
   }, [settings, ready, toast]);
   const sync = useCallback(async (force = false) => {
-    const config = settingsRef.current;
-    const provider = activeSyncProvider(config);
-    const key = config.syncKey;
-    const access = googleAccess.current;
-    const isCurrent = () =>
-      activeSyncProvider(settingsRef.current) === provider &&
-      (provider === "google"
-        ? googleAccess.current === access
-        : settingsRef.current.syncKey === key);
-    if (provider === "local") {
+    const configuration = settingsRef.current;
+    const provider = activeSyncProvider(configuration);
+    const key = provider === "google" ? configuration.driveKey : configuration.syncKey;
+    if (provider === "local" || (provider === "nest" && !key)) {
       setSyncState("local");
       setSyncError("");
       return;
@@ -160,20 +164,27 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       setSyncState("offline");
       return;
     }
-    if (provider === "google" && (!access || access.expiresAt <= Date.now() + 30000)) {
+    if (operation.current) return;
+    if (provider === "google" && (!key || !driveSession.current)) {
       setSyncState("reconnect");
       return;
     }
     if (!force && Date.now() < retryAt.current) return;
-    if (syncing.current) return;
-    syncing.current = true;
+    const controller = new AbortController();
+    operation.current = controller;
     setSyncState("syncing");
     setSyncError("");
     try {
       const outgoing = prepareSyncLibrary(current.current);
       let incoming: Library;
       if (provider === "google") {
-        incoming = await syncGoogleDrive(access!.token, outgoing);
+        incoming = await syncGoogleDrive(
+          driveSession.current!,
+          key!,
+          configuration.driveDeviceId!,
+          outgoing,
+          controller.signal,
+        );
       } else {
         const r = await fetch("/api/sync", {
           method: "POST",
@@ -181,84 +192,147 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({
             bookmarks: outgoing.bookmarks.filter((b) => !b.demo),
             lists: outgoing.lists,
-            healthChecks: config.healthChecks,
+            healthChecks: settingsRef.current.healthChecks,
           }),
-          signal: AbortSignal.timeout(20000),
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]),
         });
-        if (!isCurrent()) return;
+        if (settingsRef.current.syncKey !== key) return;
         if (r.status === 503) {
           setSyncState("unconfigured");
           return;
         }
-        if (!r.ok) throw Error("Could not sync. Your device copy is safe; Nest will retry.");
+        if (!r.ok) throw Error("Sync failed");
         incoming = librarySchema.parse(await r.json());
       }
-      if (!isCurrent()) return;
-      // Validate the union before applying it, including changes made during the request.
+      if (
+        controller.signal.aborted ||
+        activeSyncProvider(settingsRef.current) !== provider ||
+        (provider === "google" ? settingsRef.current.driveKey : settingsRef.current.syncKey) !== key
+      )
+        return;
       restoreLibrary(current.current, incoming);
       setLibrary((local) => {
         const merged = mergeLibrary(prepareSyncLibrary(local), incoming);
         return JSON.stringify(merged) === JSON.stringify(local) ? local : merged;
       });
       setSyncState("synced");
+      setLastSyncedAt(Date.now());
       retryAt.current = 0;
       quotaFailures.current = 0;
     } catch (error) {
-      if (!isCurrent()) return;
-      if (provider === "google" && error instanceof GoogleDriveError && error.status === 401) {
-        googleAccess.current = null;
+      if (controller.signal.aborted) return;
+      if (error instanceof DriveAuthError) {
+        driveSession.current = null;
+        setDriveConnected(false);
         setSyncState("reconnect");
-      } else {
-        setSyncState(navigator.onLine ? "error" : "offline");
-      }
-      if (error instanceof GoogleDriveError && (error.status === 403 || error.status === 429)) {
+      } else setSyncState(navigator.onLine ? "error" : "offline");
+      if (error instanceof DriveRequestError && (error.status === 403 || error.status === 429)) {
         quotaFailures.current++;
-        retryAt.current =
-          Date.now() +
-          Math.min(30000 * 2 ** (quotaFailures.current - 1), 300000) +
-          Math.random() * 1000;
+        retryAt.current = Date.now() + Math.min(30000 * 2 ** (quotaFailures.current - 1), 300000);
       }
       setSyncError(
-        error instanceof GoogleDriveError
-          ? error.message
-          : "Could not sync. Your device copy is safe; Nest will retry.",
+        error instanceof Error ? error.message : "Sync could not finish. Your device copy is safe.",
       );
     } finally {
-      syncing.current = false;
+      if (operation.current === controller) operation.current = null;
     }
   }, []);
   const syncNow = useCallback(() => sync(true), [sync]);
   const connectGoogle = useCallback(
-    async (clientId: string) => {
-      const access = await requestGoogleAccess(clientId);
-      googleAccess.current = access;
-      setSettings({ syncProvider: "google" });
-      await sync(true);
-    },
-    [setSettings, sync],
-  );
-  const disconnectSync = useCallback(() => {
-    googleAccess.current = null;
-    retryAt.current = 0;
-    quotaFailures.current = 0;
-    setSettings({ syncProvider: "local" });
-    setSyncState("local");
-    setSyncError("");
-  }, [setSettings]);
-  const restore = useCallback(
-    (backup: Backup, preferences: boolean) => {
-      const merged = restoreLibrary(current.current, backup.library);
-      current.current = merged;
-      setLibrary(merged);
-      setSettings({ ...(preferences ? backup.preferences : {}), onboarded: true });
+    async (existingKey?: string) => {
+      operation.current?.abort();
+      const controller = new AbortController();
+      operation.current = controller;
+      setSyncError("");
+      setSyncState("syncing");
+      try {
+        const session = await authorizeGoogleDrive();
+        controller.signal.throwIfAborted();
+        const key = (
+          existingKey ||
+          settingsRef.current.driveKey ||
+          settingsRef.current.drivePendingKey ||
+          recoveryKey()
+        )
+          .trim()
+          .toLowerCase();
+        const deviceId = settingsRef.current.driveDeviceId || crypto.randomUUID();
+        // Persist the candidate before uploading: a lost response must not strand encrypted data.
+        const pending = { ...settingsRef.current, drivePendingKey: key, driveDeviceId: deviceId };
+        localStorage.setItem("nest-settings", JSON.stringify(pending));
+        setSettings({ drivePendingKey: key, driveDeviceId: deviceId });
+        const incoming = await syncGoogleDrive(
+          session,
+          key,
+          deviceId,
+          current.current,
+          controller.signal,
+        );
+        controller.signal.throwIfAborted();
+        // Verify the existing encrypted data before remembering credentials or changing providers.
+        localStorage.setItem(
+          "nest-settings",
+          JSON.stringify({
+            ...settingsRef.current,
+            driveKey: key,
+            drivePendingKey: undefined,
+            syncProvider: "google",
+          }),
+        );
+        driveSession.current = session;
+        setDriveConnected(true);
+        setSettings({
+          driveKey: key,
+          drivePendingKey: undefined,
+          driveDeviceId: deviceId,
+          syncProvider: "google",
+        });
+        restoreLibrary(current.current, incoming);
+        setLibrary((local) => mergeLibrary(prepareSyncLibrary(local), incoming));
+        setSyncState("synced");
+        setLastSyncedAt(Date.now());
+        retryAt.current = 0;
+        quotaFailures.current = 0;
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          const message =
+            error instanceof Error ? error.message : "Could not connect Google Drive.";
+          setSyncError(message);
+          setSyncState(settingsRef.current.driveKey ? "reconnect" : "error");
+          throw Error(message);
+        }
+      } finally {
+        if (operation.current === controller) operation.current = null;
+      }
     },
     [setSettings],
   );
+  const disconnectGoogle = useCallback(() => {
+    operation.current?.abort();
+    driveSession.current = null;
+    setDriveConnected(false);
+    setSettings({ driveKey: undefined, drivePendingKey: undefined, syncProvider: "local" });
+    retryAt.current = 0;
+    quotaFailures.current = 0;
+    setSyncState("local");
+    setSyncError("");
+    setLastSyncedAt(null);
+  }, [setSettings]);
+  useEffect(() => () => operation.current?.abort(), []);
   useEffect(() => {
     if (!ready) return;
     const t = setTimeout(() => void sync(), 1500);
     return () => clearTimeout(t);
-  }, [library, settings.syncKey, settings.syncProvider, ready, online, sync]);
+  }, [
+    library,
+    settings.syncKey,
+    settings.driveKey,
+    settings.syncProvider,
+    settings.healthChecks,
+    ready,
+    online,
+    sync,
+  ]);
   useEffect(() => {
     if (!ready || syncProvider === "local") return;
     const interval = setInterval(() => {
@@ -272,7 +346,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, [sync, settings.syncKey, syncProvider, settings.healthChecks, ready]);
+  }, [sync, syncProvider, ready]);
   const update = useCallback(
     (id: string, changes: Partial<Bookmark>) =>
       setLibrary((s) => ({
@@ -305,6 +379,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         ready,
         syncState,
         syncError,
+        lastSyncedAt,
+        driveConnected,
         online,
         toast,
         setSettings,
@@ -313,8 +389,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         add,
         sync: syncNow,
         connectGoogle,
-        disconnectSync,
-        restore,
+        disconnectGoogle,
       }}
     >
       {children}

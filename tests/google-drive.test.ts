@@ -1,141 +1,230 @@
-import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
-import { syncGoogleDrive, GoogleDriveError, activeSyncProvider } from "../src/lib/google-drive";
-import { createBackup, parseBackup } from "../src/lib/backup";
+import { test, mock } from "node:test";
+import {
+  syncGoogleDrive,
+  DriveAuthError,
+  activeSyncProvider,
+  DriveRequestError,
+} from "../src/lib/google-drive";
 import { makeBookmark } from "../src/lib/bookmarks";
-import { defaultSettings } from "../src/lib/types";
+import { encryptData, importRecoveryKey, recoveryKey } from "../src/lib/encryption";
+import { defaultSettings, type Library } from "../src/lib/types";
 
-const firstDevice = "11111111-1111-4111-8111-111111111111";
-const secondDevice = "22222222-2222-4222-8222-222222222222";
-function drive(t: TestContext) {
-  const files = new Map<string, { id: string; name: string; content: string }>();
-  let device = firstDevice;
-  let writes = 0;
-  let failStatus = 0;
-  const oldNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
-  Object.defineProperty(globalThis, "navigator", { configurable: true, value: {} });
-  Object.defineProperty(globalThis, "sessionStorage", {
+const empty: Library = { bookmarks: [], lists: [] };
+const session = { accessToken: "ephemeral-google-token", expiresAt: Date.now() + 3600000 };
+type Snapshot = { id: string; name: string; data: unknown };
+function fakeDrive() {
+  const files = new Map<string, Snapshot>();
+  const writes: string[] = [];
+  const requests: { url: string; headers: Headers; body: string }[] = [];
+  const descriptor = Object.getOwnPropertyDescriptor(navigator, "locks");
+  // Each call represents an independent device with its own browser lock manager.
+  Object.defineProperty(navigator, "locks", {
     configurable: true,
     value: {
-      getItem: () => device,
-      setItem: () => {},
+      request: async (_name: string, options: { signal: AbortSignal }, callback: () => unknown) => {
+        options.signal.throwIfAborted();
+        return callback();
+      },
     },
   });
-  t.after(() => {
-    if (oldNavigator) Object.defineProperty(globalThis, "navigator", oldNavigator);
-    Reflect.deleteProperty(globalThis, "sessionStorage");
-  });
-  t.mock.method(globalThis, "fetch", async (input: string, init: RequestInit) => {
-    const url = new URL(input);
-    assert.equal(new Headers(init.headers).get("Authorization"), "Bearer test-token");
-    assert.ok(!url.searchParams.has("access_token"));
-    if (failStatus) return new Response("Failed", { status: failStatus });
-    if (url.pathname.startsWith("/upload/")) {
-      writes++;
-      if (init.method === "POST") {
-        const body = await (init.body as Blob).text();
-        const parts = body
-          .split(/--nest-[a-f0-9-]+/)
-          .filter((part) => part.includes("Content-Type"));
-        const metadata = JSON.parse(parts[0].split("\r\n\r\n")[1].trim());
+  const fetch = mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input));
+      const body = String(init?.body || "");
+      const headers = new Headers(init?.headers);
+      requests.push({ url: url.href, headers, body });
+      assert.equal(headers.get("Authorization"), `Bearer ${session.accessToken}`);
+      if (init?.method === "POST") {
+        const boundary = headers.get("content-type")!.split("boundary=")[1];
+        const parts = body.split(`--${boundary}`);
+        const metadata = JSON.parse(parts[1].split("\r\n\r\n")[1].trim());
         assert.deepEqual(metadata.parents, ["appDataFolder"]);
-        assert.deepEqual(metadata.appProperties, { application: "nest" });
-        const id = `file-${files.size + 1}`;
-        files.set(id, { id, name: metadata.name, content: parts[1].split("\r\n\r\n")[1].trim() });
+        assert.deepEqual(metadata.appProperties, { nestSync: "v1" });
+        const data = JSON.parse(parts[2].split("\r\n\r\n")[1].trim());
+        const id = `file${files.size + 1}`;
+        files.set(id, { id, name: metadata.name, data });
+        writes.push(id);
         return Response.json({ id });
       }
-      const file = files.get(url.pathname.split("/").pop()!)!;
-      file.content = String(init.body);
-      return Response.json({ id: file.id });
-    }
-    if (url.searchParams.has("spaces")) {
+      if (init?.method === "PATCH") {
+        const id = url.pathname.split("/").at(-1)!;
+        files.get(id)!.data = JSON.parse(body);
+        writes.push(id);
+        return Response.json({ id });
+      }
+      if (url.searchParams.get("alt") === "media")
+        return Response.json(files.get(url.pathname.split("/").at(-1)!)!.data);
       assert.equal(url.searchParams.get("spaces"), "appDataFolder");
-      return Response.json({
-        files: [...files.values()].map(({ id, name, content }) => ({
-          id,
-          name,
-          size: String(content.length),
-        })),
-      });
-    }
-    return new Response(files.get(url.pathname.split("/").pop()!)!.content);
-  });
+      return Response.json({ files: [...files.values()].map(({ id, name }) => ({ id, name })) });
+    },
+  );
   return {
     files,
-    writes: () => writes,
-    device: (id: string) => {
-      device = id;
-    },
-    fail: (status: number) => {
-      failStatus = status;
+    writes,
+    requests,
+    restore: () => {
+      fetch.mock.restore();
+      if (descriptor) Object.defineProperty(navigator, "locks", descriptor);
+      else Reflect.deleteProperty(navigator, "locks");
     },
   };
 }
+const sync = (key: string, device: string, library: Library) =>
+  syncGoogleDrive(session, key, device, library, new AbortController().signal);
 
-test("Drive creates private app-data snapshots and avoids uploading an unchanged library", async (t) => {
-  const server = drive(t);
-  const library = { bookmarks: [makeBookmark("https://example.com")], lists: [] };
-  assert.deepEqual(await syncGoogleDrive("test-token", library), library);
-  assert.equal(server.writes(), 1);
-  const stored = [...server.files.values()][0];
-  assert.equal(stored.name, `nest-library-${firstDevice}.json`);
-  assert.deepEqual(parseBackup(stored.content).library, library);
-  await syncGoogleDrive("test-token", library);
-  assert.equal(server.writes(), 1);
-});
-
-test("two devices retain offline additions, edits, and deletion tombstones in separate files", async (t) => {
-  const server = drive(t);
-  const a = makeBookmark("https://example.com/a", { updatedAt: 10 });
-  const b = makeBookmark("https://example.com/b", { updatedAt: 10 });
-  const initialA = { bookmarks: [a], lists: [] };
-  const initialB = { bookmarks: [b], lists: [] };
-  await syncGoogleDrive("test-token", initialA);
-  server.device(secondDevice);
-  const combined = await syncGoogleDrive("test-token", initialB);
-  assert.equal(combined.bookmarks.length, 2);
-  const removedB = { ...b, deletedAt: 30, updatedAt: 30 };
-  await syncGoogleDrive("test-token", { bookmarks: [a, removedB], lists: [] });
-  const secondFile = [...server.files.values()].find((file) => file.name.includes(secondDevice))!;
-  const secondContent = secondFile.content;
-  server.device(firstDevice);
-  const newA = { ...a, note: "Offline edit", updatedAt: 40 };
-  const result = await syncGoogleDrive("test-token", { bookmarks: [newA], lists: [] });
-  assert.equal(result.bookmarks.find((record) => record.id === b.id)?.deletedAt, 30);
-  assert.equal(result.bookmarks.find((record) => record.id === a.id)?.note, "Offline edit");
-  assert.equal(secondFile.content, secondContent);
-  assert.equal(server.files.size, 2);
-});
-
-test("invalid cloud data, expired authorization, and quota failures never overwrite snapshots", async (t) => {
-  const server = drive(t);
-  const library = { bookmarks: [], lists: [] };
-  server.files.set("broken", {
-    id: "broken",
-    name: `nest-library-${secondDevice}.json`,
-    content: "bad JSON",
-  });
-  await assert.rejects(syncGoogleDrive("test-token", library), /not valid JSON/);
-  assert.equal(server.writes(), 0);
-  for (const status of [401, 403, 429]) {
-    server.fail(status);
-    await assert.rejects(
-      syncGoogleDrive("test-token", library),
-      (error: unknown) => error instanceof GoogleDriveError && error.status === status,
-    );
+test("two devices converge after simultaneous edits; deletion tombstones survive an old offline copy", async () => {
+  const drive = fakeDrive();
+  try {
+    const key = recoveryKey();
+    const one = makeBookmark("https://example.org/one", {
+      id: "one",
+      updatedAt: 10,
+      note: "Private note",
+    });
+    const two = makeBookmark("https://example.org/two", { id: "two", updatedAt: 20 });
+    await Promise.all([
+      sync(key, "phone", { bookmarks: [one], lists: [] }),
+      sync(key, "laptop", { bookmarks: [two], lists: [] }),
+    ]);
+    assert.equal(drive.files.size, 2);
+    const phone = await sync(key, "phone", { bookmarks: [one], lists: [] });
+    const laptop = await sync(key, "laptop", { bookmarks: [two], lists: [] });
+    assert.deepEqual(new Set(phone.bookmarks.map((item) => item.id)), new Set(["one", "two"]));
+    assert.deepEqual(phone, laptop);
+    const deleted = { ...one, updatedAt: 30, deletedAt: 30 };
+    await sync(key, "phone", { ...phone, bookmarks: [deleted, two] });
+    const restoredDevice = await sync(key, "tablet", { bookmarks: [one], lists: [] });
+    assert.equal(restoredDevice.bookmarks.find((item) => item.id === "one")?.deletedAt, 30);
+    for (const request of drive.requests) {
+      assert.ok(!request.body.includes(one.url));
+      assert.ok(!request.body.includes("Private note"));
+      assert.ok(!request.body.includes(key));
+      assert.ok(!request.url.includes(key));
+    }
+    const writes = drive.writes.length;
+    await sync(key, "tablet", restoredDevice);
+    assert.equal(drive.writes.length, writes, "unchanged libraries do not upload again");
+  } finally {
+    drive.restore();
   }
-  assert.equal(server.writes(), 0);
 });
 
-test("existing recovery-key settings retain their provider until the user explicitly disconnects", () => {
-  assert.equal(activeSyncProvider({ ...defaultSettings, syncKey: "existing-key" }), "nest");
-  assert.equal(
-    activeSyncProvider({ ...defaultSettings, syncKey: "existing-key", syncProvider: "google" }),
-    "google",
-  );
-  assert.equal(
-    activeSyncProvider({ ...defaultSettings, syncKey: "existing-key", syncProvider: "local" }),
-    "local",
-  );
-  assert.doesNotThrow(() => createBackup({ bookmarks: [], lists: [] }));
+test("wrong keys and a corrupted device snapshot fail before any Drive write", async () => {
+  const drive = fakeDrive();
+  try {
+    const key = recoveryKey();
+    await sync(key, "phone", empty);
+    const before = JSON.stringify([...drive.files]);
+    await assert.rejects(sync(recoveryKey(), "tablet", empty), /original recovery key/);
+    assert.equal(JSON.stringify([...drive.files]), before);
+    drive.files.set("broken", {
+      id: "broken",
+      name: "nest-sync-v1-broken.json",
+      data: { invalid: true },
+    });
+    const writes = drive.writes.length;
+    await assert.rejects(
+      sync(key, "phone", { bookmarks: [makeBookmark("https://example.com")], lists: [] }),
+    );
+    assert.equal(drive.writes.length, writes);
+  } finally {
+    drive.restore();
+  }
+});
+
+test("Drive listing follows pagination and restores every device before uploading", async () => {
+  const drive = fakeDrive();
+  try {
+    const key = recoveryKey();
+    const cryptoKey = await importRecoveryKey(key);
+    const one = makeBookmark("https://example.com/a", { id: "a" });
+    const two = makeBookmark("https://example.com/b", { id: "b" });
+    drive.files.set("a", {
+      id: "a",
+      name: "first",
+      data: await encryptData({ bookmarks: [one], lists: [] }, cryptoKey, "drive"),
+    });
+    drive.files.set("b", {
+      id: "b",
+      name: "second",
+      data: await encryptData({ bookmarks: [two], lists: [] }, cryptoKey, "drive"),
+    });
+    const original = globalThis.fetch;
+    const paginated = mock.method(
+      globalThis,
+      "fetch",
+      async (input: string | URL | Request, init?: RequestInit) => {
+        const url = new URL(String(input));
+        if (url.pathname === "/drive/v3/files")
+          return Response.json(
+            url.searchParams.has("pageToken")
+              ? { files: [{ id: "b", name: "second" }] }
+              : { files: [{ id: "a", name: "first" }], nextPageToken: "next-page" },
+          );
+        return original(input, init);
+      },
+    );
+    try {
+      assert.equal((await sync(key, "new-device", empty)).bookmarks.length, 2);
+    } finally {
+      paginated.mock.restore();
+    }
+  } finally {
+    drive.restore();
+  }
+});
+
+test("expired authorization and cancellation never upload", async () => {
+  const drive = fakeDrive();
+  try {
+    await assert.rejects(
+      syncGoogleDrive(
+        { ...session, expiresAt: 0 },
+        recoveryKey(),
+        "phone",
+        empty,
+        new AbortController().signal,
+      ),
+      DriveAuthError,
+    );
+    const controller = new AbortController();
+    controller.abort();
+    await assert.rejects(
+      syncGoogleDrive(session, recoveryKey(), "phone", empty, controller.signal),
+    );
+    assert.equal(drive.writes.length, 0);
+  } finally {
+    drive.restore();
+  }
+});
+
+test("upgrades honor an explicit local or Google provider even when a legacy server key is saved", () => {
+  const old = { ...defaultSettings, syncKey: "old-server-key" };
+  assert.equal(activeSyncProvider(old), "nest");
+  assert.equal(activeSyncProvider({ ...old, syncProvider: "local" }), "local");
+  assert.equal(activeSyncProvider({ ...old, syncProvider: "google" }), "google");
+  assert.equal(activeSyncProvider({ ...old, driveKey: recoveryKey() }), "google");
+});
+
+test("permission and quota errors retain HTTP status for retry backoff and never upload", async () => {
+  const drive = fakeDrive();
+  try {
+    for (const status of [403, 429]) {
+      const failed = mock.method(globalThis, "fetch", async () => new Response(null, { status }));
+      try {
+        await assert.rejects(
+          sync(recoveryKey(), "phone", empty),
+          (error: unknown) => error instanceof DriveRequestError && error.status === status,
+        );
+      } finally {
+        failed.mock.restore();
+      }
+    }
+    assert.equal(drive.writes.length, 0);
+  } finally {
+    drive.restore();
+  }
 });

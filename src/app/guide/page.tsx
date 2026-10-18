@@ -127,21 +127,22 @@ const sections = [
     body: (
       <>
         <p>
-          Your library is saved in this browser first. Open <strong>Settings → Sync & data</strong>{" "}
-          to connect Google Drive when available, or use recovery-key sync through this site’s
-          optional Neon database.
+          Your library is saved in this browser first. When Google sync is available, open{" "}
+          <strong>Settings → Sync & data → Set up Google Drive</strong> and choose your Google
+          account.
         </p>
         <p>
-          For Google Drive, connect the same Google account on each device. Sync runs while Nest is
-          open and authorized; reconnect after a reload or when access expires. For recovery-key
-          sync, store the key somewhere safe, then paste it into Nest on another device. Anyone who
-          has that key can access the synced library. Lost keys cannot be recovered, and cloud data
-          is not end-to-end encrypted.
+          Save the recovery key somewhere safe. On another device, open Sync & data, paste that key
+          under Already syncing on another device, and connect the same Google account. Your library
+          is encrypted before upload to Google’s hidden Nest app storage. You need both access to
+          the Google account and the recovery key. Lost keys cannot be recovered. Reconnect Google
+          after reopening Nest or when sign-in expires; local changes wait safely on the device.
         </p>
         <p>
-          After recovery-key sync and scheduled checks are configured, confirmed missing pages
-          appear in Broken links. Checks run in daily batches; temporary failures get another
-          chance. Large libraries take multiple runs.
+          Changes merge automatically while Nest is open and connected. The latest edit to each
+          record wins, so device clocks should be accurate. Trash remains recoverable. Legacy Nest
+          cloud sync is available separately and is not end-to-end encrypted; only that option
+          supports scheduled server link checks.
         </p>
       </>
     ),
@@ -172,17 +173,17 @@ const sections = [
     body: (
       <>
         <p>
-          Open <strong>Settings → Sync & data</strong> to export. <strong>JSON</strong> keeps your
-          bookmarks, collections, tags, notes, trash, and preferences. Credentials and sample
-          bookmarks are excluded. <strong>HTML</strong> is a flat export of active bookmarks that
-          other browsers can import.
+          Open <strong>Settings → Sync & data</strong>, choose a password of at least 12 characters,
+          confirm it, and select <strong>Download encrypted backup</strong>. The .nest file keeps
+          bookmarks, collections, tags, notes, trash, and preferences; sync credentials stay on the
+          original device. Keep the password safe. JSON provides an unencrypted full backup; HTML
+          exports active links for other browsers. Untouched samples are excluded.
         </p>
         <p>
-          Save the JSON file locally or in your own cloud folder. On a new device, choose{" "}
-          <strong>Choose backup</strong> in Sync & data, review the preview, then select{" "}
-          <strong>Restore backup</strong>. Existing records are merged by their latest update, so
-          repeated restores keep the same IDs. Browser storage can be cleared or evicted by your
-          device.
+          Transfer the backup file to your new device. In Sync & data, choose the file, enter its
+          password, select Preview backup, then Restore backup. Restoring merges records and keeps
+          newer changes and existing bookmarks. Old Nest JSON exports also restore here. Files up to
+          20 MB are supported. Keep occasional backups because browsers can clear local storage.
         </p>
       </>
     ),

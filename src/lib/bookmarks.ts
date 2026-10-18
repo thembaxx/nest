@@ -1,4 +1,4 @@
-import type { Bookmark, BookmarkList, Library, Topic } from "./types";
+import { librarySchema, type Bookmark, type BookmarkList, type Library, type Topic } from "./types";
 import { validUrl } from "./urls";
 import { folderKey } from "./paste";
 export { validUrl, extractUrls } from "./urls";
@@ -157,13 +157,13 @@ export function parseImport(
     return list.id;
   };
   if (filename.toLowerCase().endsWith(".json")) {
-    const data = JSON.parse(text);
-    if (data?.format === "nest-backup")
-      throw Error(
-        "Restore this backup in Settings → Sync & data → Choose backup to preserve IDs and trash.",
-      );
+    const raw = JSON.parse(text);
+    if (raw?.format === "nest-backup" && raw.version !== 1)
+      throw Error("This backup version is not supported. Restore it with a newer Nest version.");
+    const data = raw?.format === "nest-backup" ? librarySchema.parse(raw.library ?? raw) : raw;
     if (data.bookmarks && Array.isArray(data.bookmarks)) {
       for (const b of data.bookmarks) {
+        if (b.deletedAt || b.demo) continue;
         const url = validUrl(b.url || "");
         if (url)
           bookmarks.push(

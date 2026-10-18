@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { librarySchema, type Library, type Settings } from "./types";
-import { mergeLibrary } from "./bookmarks";
 import { prepareSyncLibrary } from "./sync";
+import { mergeLibrary } from "./bookmarks";
+import { decryptData, encryptData, MAX_BACKUP_BYTES, passwordKey } from "./encryption";
 
-export const MAX_BACKUP_BYTES = 20 * 1024 * 1024;
 const preferencesSchema = z
   .object({
     theme: z.enum(["system", "light", "dark"]),
@@ -12,74 +12,100 @@ const preferencesSchema = z
     effects: z.boolean(),
   })
   .partial();
-const backupSchema = librarySchema.extend({
+const backupSchema = z.object({
+  format: z.literal("nest-backup"),
+  version: z.literal(1),
+  createdAt: z.iso.datetime(),
+  library: librarySchema,
+  preferences: preferencesSchema,
+});
+export type Backup = { library: Library; preferences?: z.infer<typeof preferencesSchema> };
+
+const flatBackupSchema = librarySchema.extend({
   format: z.literal("nest-backup"),
   version: z.literal(1),
   exportedAt: z.iso.datetime(),
   preferences: preferencesSchema.optional(),
 });
-export type Backup = {
-  library: Library;
-  preferences?: z.infer<typeof preferencesSchema>;
-  exportedAt?: string;
-};
-
-export function syncableLibrary(library: Library): Library {
-  const prepared = prepareSyncLibrary(library);
-  return librarySchema.parse({
-    bookmarks: prepared.bookmarks.filter((bookmark) => !bookmark.demo),
-    lists: prepared.lists,
-  });
-}
-
-export function createBackup(library: Library, settings?: Settings): string {
-  const data = {
-    format: "nest-backup",
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    ...syncableLibrary(library),
-    ...(settings ? { preferences: preferencesSchema.parse(settings) } : {}),
-  };
-  const text = JSON.stringify(data, null, 2);
-  if (new TextEncoder().encode(text).byteLength > MAX_BACKUP_BYTES)
-    throw Error("This backup exceeds the 20 MB limit. Export smaller collections separately.");
-  return text;
-}
-
-export function parseBackup(text: string): Backup {
-  if (new TextEncoder().encode(text).byteLength > MAX_BACKUP_BYTES)
-    throw Error("Please choose a Nest backup smaller than 20 MB.");
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    throw Error("This file is not valid JSON. Choose a Nest JSON backup.");
-  }
-  if (raw && typeof raw === "object" && "format" in raw) {
-    if (raw.format !== "nest-backup" || !("version" in raw) || raw.version !== 1)
-      throw Error("This backup format is not supported. Update Nest before restoring it.");
-    const parsed = backupSchema.safeParse(raw);
-    if (!parsed.success) throw Error("This Nest backup contains invalid or incomplete data.");
-    validateIds(parsed.data);
-    return {
-      library: syncableLibrary(parsed.data),
-      preferences: parsed.data.preferences,
-      exportedAt: parsed.data.exportedAt,
-    };
-  }
-  // Older Nest exports were unversioned library objects.
-  const parsed = librarySchema.safeParse(raw);
-  if (!parsed.success) throw Error("Choose a Nest JSON backup. Browser exports belong in Import.");
-  validateIds(parsed.data);
-  return { library: syncableLibrary(parsed.data) };
-}
 
 function validateIds(library: Library) {
   for (const records of [library.bookmarks, library.lists])
     if (new Set(records.map((record) => record.id)).size !== records.length)
-      throw Error("This backup contains duplicate record IDs and cannot be restored safely.");
+      throw Error("This backup contains duplicate record IDs.");
 }
 
-export function restoreLibrary(local: Library, backup: Library): Library {
-  return librarySchema.parse(mergeLibrary(prepareSyncLibrary(local), backup));
+function parseData(raw: unknown): Backup {
+  if (raw && typeof raw === "object" && "format" in raw) {
+    if (raw.format !== "nest-backup" || !("version" in raw) || raw.version !== 1)
+      throw Error("This backup format is not supported.");
+    // The earlier release used top-level records and exportedAt rather than a library object.
+    const backup = "library" in raw ? backupSchema.parse(raw) : flatBackupSchema.parse(raw);
+    const library = "library" in backup ? backup.library : backup;
+    validateIds(library);
+    return { library: personalLibrary(library), preferences: backup.preferences };
+  }
+  const library = librarySchema.parse(raw);
+  validateIds(library);
+  return { library: personalLibrary(library) };
+}
+
+export function parseBackup(text: string): Backup {
+  if (new TextEncoder().encode(text).byteLength > MAX_BACKUP_BYTES)
+    throw Error("Choose a backup smaller than 20 MB.");
+  return parseData(JSON.parse(text));
+}
+
+export function restoreLibrary(local: Library, incoming: Library): Library {
+  return librarySchema.parse(mergeLibrary(prepareSyncLibrary(local), incoming));
+}
+
+export function personalLibrary(library: Library): Library {
+  const prepared = prepareSyncLibrary(library);
+  const personal = librarySchema.parse({
+    bookmarks: prepared.bookmarks.filter((bookmark) => !bookmark.demo),
+    lists: prepared.lists.filter((list) => list.updatedAt !== 0),
+  });
+  validateIds(personal);
+  return personal;
+}
+export function createBackup(library: Library, settings: Settings) {
+  return backupSchema.parse({
+    format: "nest-backup",
+    version: 1,
+    createdAt: new Date().toISOString(),
+    library: personalLibrary(library),
+    // Device credentials, downloaded models, and sign-in sessions never travel in a backup.
+    preferences: preferencesSchema.parse(settings),
+  });
+}
+export async function encryptedBackup(library: Library, settings: Settings, password: string) {
+  const { key, salt } = await passwordKey(password);
+  return {
+    ...(await encryptData(createBackup(library, settings), key, "backup")),
+    kdf: { name: "PBKDF2-SHA256", iterations: 600000, salt },
+  };
+}
+export async function readBackup(text: string, password: string): Promise<Backup> {
+  if (new TextEncoder().encode(text).byteLength > MAX_BACKUP_BYTES)
+    throw Error("Choose a backup smaller than 20 MB.");
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+    if (raw && typeof raw === "object" && "format" in raw && raw.format === "nest-encrypted") {
+      const { kdf } = z
+        .object({
+          kdf: z.object({
+            name: z.literal("PBKDF2-SHA256"),
+            iterations: z.literal(600000),
+            salt: z.string().regex(/^[A-Za-z0-9+/]{22}==$/),
+          }),
+        })
+        .parse(raw);
+      const { key } = await passwordKey(password, kdf.salt);
+      raw = await decryptData(raw, key, "backup");
+    }
+    return parseData(raw);
+  } catch {
+    throw Error("Could not open this backup. Check the file and, if encrypted, its password.");
+  }
 }

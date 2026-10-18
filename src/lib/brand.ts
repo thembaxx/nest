@@ -69,11 +69,11 @@ export const faqs = [
   {
     question: "How does syncing work?",
     answer:
-      "Sync is optional. Google Drive uses private app data in your Google account when the site has an OAuth client configured; reconnect after a reload or token expiry. Recovery-key sync uses the site’s optional Neon database. You can also download a JSON backup and restore it on another device without any cloud setup. Recovery keys cannot be recovered if lost, and cloud data is not end-to-end encrypted.",
+      "Optional Google Drive sync encrypts your library on your device. Pair devices with the same Google account and recovery key, and reconnect Google when its session expires. Password-protected local backups also restore on other devices. Legacy Nest cloud sync requires a Neon database and is not end-to-end encrypted. Lost keys and backup passwords cannot be recovered.",
   },
   {
     question: "How does Nest identify broken links?",
     answer:
-      "When cloud sync and scheduled checks are configured, Nest checks saved links in daily batches. Two missing-page responses, such as 404 or 410, confirm a broken link. Temporary blocks and timeouts are treated as uncertain, and a healthy response restores a confirmed link.",
+      "When legacy Nest cloud sync and scheduled checks are configured, Nest checks saved links in daily batches. Two missing-page responses, such as 404 or 410, confirm a broken link. Temporary blocks and timeouts are treated as uncertain, and a healthy response restores a confirmed link.",
   },
 ];

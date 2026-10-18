@@ -17,9 +17,10 @@ export default function PrivacyPage() {
         <h2>At home on your device.</h2>
         <p>
           Nest saves your bookmark library in IndexedDB in your browser, with a localStorage
-          fallback. Preferences and a sync recovery key, if you enable sync, are saved on this
-          device. The sample library is clearly marked; samples aren’t sent to cloud sync or
-          included in exports.
+          fallback. Preferences and sync recovery keys, if you enable sync, are saved on this
+          device. Google access tokens stay in memory and are not saved in browser storage. The
+          sample library is clearly marked; samples aren’t sent to cloud sync or included in
+          exports.
         </p>
         <h2>When you save a link.</h2>
         <p>
@@ -35,42 +36,54 @@ export default function PrivacyPage() {
           and runtime hosts, which can see the download request. Model assets are cached in browser
           storage and can be removed in Settings.
         </p>
-        <h2>Google Drive, when you choose it.</h2>
+        <h2>Sync, when you choose it.</h2>
         <p>
-          Google Drive sync sends your library directly from your browser to Nest’s private app-data
-          folder in your Google account over HTTPS. Nest requests only app-data access, not access
-          to your other files or email. Access tokens stay in memory and are excluded from backups;
-          reconnect after reloading Nest or when access expires. The site’s server and Neon database
-          are not part of this sync path. Google stores the cloud copy; it is not end-to-end
-          encrypted. Disconnecting stops this device’s sync and keeps existing copies. You can
-          remove the application’s access and hidden data through Google’s settings.
-        </p>
-        <h2>Recovery-key sync, when you choose it.</h2>
-        <p>
-          Cloud sync is optional and needs a connected Neon database. It sends bookmark records and
-          collections to the deployment’s server and database over HTTPS. Sync data is not
-          end-to-end encrypted.
+          Google Drive sync is optional. Nest encrypts bookmark records, collections, notes, and
+          deletion history on your device with AES-256-GCM before sending them directly to Google.
+          Only the hidden appDataFolder permission is requested; Nest cannot read your other Drive
+          files. Google can see account, file-size, timing, and request metadata. Google sign-in
+          loads Google’s identity script when you prepare to connect.
         </p>
         <p>
-          A random recovery key grants access to a synced library. The server uses its hash as the
-          library identifier. Keep the key safe; anyone who has it can access the library, and a
-          lost key cannot be recovered. Disconnecting a device stops its sync but doesn’t erase its
-          local copy or the existing cloud copy.
+          A random recovery key decrypts your Drive library. Pair another device with the same key
+          and Google account. Nest cannot recover a lost key. The local library and key are readable
+          to someone with access to your unlocked browser. Reconnect Google after reopening Nest or
+          when the short-lived access token expires. Disconnecting stops sync on this device and
+          keeps local and Drive copies. Remove Nest’s hidden app data or access through Google
+          Drive’s Manage apps settings if you want to remove the cloud copy.
+        </p>
+        <p>
+          Legacy Nest cloud sync remains available for existing users. It sends readable records to
+          the deployment’s server and Neon database over HTTPS and is not end-to-end encrypted. Its
+          recovery key is a bearer credential; the server uses its hash as a library identifier.
+          Switching to Google stops legacy sync on this device and does not erase existing server
+          data.
+        </p>
+        <p>
+          If you used the earlier Google integration, Nest reads those older snapshots into the new
+          encrypted copy and retains the original files. Those originals are readable through your
+          Google account. To remove them, save an encrypted backup first, update Nest on all your
+          devices, remove Nest’s hidden application data through Google Drive Manage apps, and
+          reconnect to sync encrypted copies. Removing app data deletes all Nest snapshots, so keep
+          your backup and recovery key before doing so.
         </p>
         <h2>Checking for broken links.</h2>
         <p>
-          If cloud sync and scheduled checks are configured and you leave link checking enabled, the
-          server periodically contacts saved URLs. Destination sites can see those checks. You can
-          turn checks off in Settings; that preference reaches the server at the next successful
-          sync.
+          If legacy Nest cloud sync and scheduled checks are configured and you leave link checking
+          enabled, the server periodically contacts saved URLs. Destination sites can see those
+          checks. You can turn checks off in Settings; that preference reaches the server at the
+          next successful sync. The server cannot check URLs inside encrypted Google Drive
+          libraries.
         </p>
         <h2>Keep a little backup.</h2>
         <p>
-          Browser storage can be cleared by you, your browser, or your device. Export JSON to keep a
-          portable copy of bookmarks, collections, trash, and preferences. Restore a Nest JSON
-          backup in Settings → Sync & data. Files contain private notes and are not encrypted;
-          recovery keys, Google tokens, and model downloads are excluded. Installing the PWA or
-          downloading a model doesn’t guarantee that browser storage will be permanent.
+          Browser storage can be cleared by you, your browser, or your device. Download a password-
+          protected backup to keep bookmarks, collections, notes, trash, and portable preferences.
+          Backup encryption uses AES-256-GCM with PBKDF2-SHA256 and 600,000 iterations, a random
+          salt, and a fresh nonce. Sync keys and Google sessions are excluded. Keep the file and
+          password safe; lost passwords cannot be recovered. JSON and HTML exports are readable by
+          anyone who has the files. Restore previews the contents and merges records, keeping newer
+          changes. Installing the PWA does not guarantee permanent browser storage.
         </p>
         <h2>About public pages.</h2>
         <p>
