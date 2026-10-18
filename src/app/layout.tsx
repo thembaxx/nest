@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { absoluteUrl, brand, isPreview, siteUrl } from "@/lib/brand";
 import { PageEdges } from "@/components/page-edges";
 import { pagePalettes, pagePaletteCSS, initialThemeScript } from "@/lib/page-palette";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -84,6 +85,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         {children}
+        <Analytics />
       </body>
     </html>
   );
