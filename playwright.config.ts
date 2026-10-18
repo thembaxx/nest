@@ -10,7 +10,7 @@ export default defineConfig({
     { name: "chromium", use: { browserName: "chromium" } },
     {
       name: "webkit",
-      testMatch: "**/{page-edges,sync-data}.spec.ts",
+      testMatch: "**/{page-edges,sync-data,sync-backup}.spec.ts",
       use: { browserName: "webkit" },
     },
   ],

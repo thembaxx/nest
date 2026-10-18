@@ -1,13 +1,18 @@
 import { z } from "zod";
 import { mergeLibrary } from "./bookmarks";
-import { personalLibrary } from "./backup";
+import { personalLibrary, parseBackup } from "./backup";
 import { decryptData, encryptData, importRecoveryKey, MAX_BACKUP_BYTES } from "./encryption";
-import { librarySchema, type Library } from "./types";
+import { librarySchema, type Library, type Settings } from "./types";
 
 const SCOPE = "https://www.googleapis.com/auth/drive.appdata";
 const API = "https://www.googleapis.com/drive/v3/files";
 export const googleDriveConfigured = !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 export type DriveSession = { accessToken: string; expiresAt: number };
+export function activeSyncProvider(settings: Settings) {
+  return (
+    settings.syncProvider ?? (settings.driveKey ? "google" : settings.syncKey ? "nest" : "local")
+  );
+}
 type GoogleIdentity = {
   accounts: {
     oauth2: {
@@ -92,6 +97,11 @@ export async function authorizeGoogleDrive(): Promise<DriveSession> {
   });
 }
 export class DriveAuthError extends Error {}
+export class DriveRequestError extends Error {
+  constructor(public status: number) {
+    super("Google Drive could not sync. Check permissions, storage, and your connection.");
+  }
+}
 async function driveRequest(
   session: DriveSession,
   url: string,
@@ -109,8 +119,7 @@ async function driveRequest(
     signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]),
   });
   if (response.status === 401) throw new DriveAuthError("Reconnect Google to continue syncing.");
-  if (!response.ok)
-    throw Error("Google Drive could not sync. Check permissions, storage, and your connection.");
+  if (!response.ok) throw new DriveRequestError(response.status);
   return response;
 }
 const fileSchema = z.object({ id: z.string().regex(/^[\w-]+$/), name: z.string() });
@@ -132,7 +141,7 @@ export async function syncGoogleDrive(
     do {
       const query = new URLSearchParams({
         spaces: "appDataFolder",
-        q: "trashed = false and appProperties has { key='nestSync' and value='v1' }",
+        q: "trashed = false and (appProperties has { key='nestSync' and value='v1' } or appProperties has { key='application' and value='nest' })",
         fields: "nextPageToken,files(id,name)",
         pageSize: "100",
         ...(pageToken ? { pageToken } : {}),
@@ -161,7 +170,9 @@ export async function syncGoogleDrive(
         throw Error("A Drive snapshot exceeds the 20 MB file limit.");
       let library: Library;
       try {
-        library = librarySchema.parse(await decryptData(JSON.parse(text), key, "drive"));
+        library = /^nest-library-[a-f0-9-]{36}\.json$/.test(file.name)
+          ? parseBackup(text).library
+          : librarySchema.parse(await decryptData(JSON.parse(text), key, "drive"));
       } catch {
         // Never overwrite an existing library with a new/wrong key or a partial restore.
         throw Error(

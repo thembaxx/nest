@@ -59,6 +59,14 @@ export default function PrivacyPage() {
           Switching to Google stops legacy sync on this device and does not erase existing server
           data.
         </p>
+        <p>
+          If you used the earlier Google integration, Nest reads those older snapshots into the new
+          encrypted copy and retains the original files. Those originals are readable through your
+          Google account. To remove them, save an encrypted backup first, update Nest on all your
+          devices, remove Nest’s hidden application data through Google Drive Manage apps, and
+          reconnect to sync encrypted copies. Removing app data deletes all Nest snapshots, so keep
+          your backup and recovery key before doing so.
+        </p>
         <h2>Checking for broken links.</h2>
         <p>
           If legacy Nest cloud sync and scheduled checks are configured and you leave link checking

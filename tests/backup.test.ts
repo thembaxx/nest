@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createBackup, encryptedBackup, personalLibrary, readBackup } from "../src/lib/backup";
+import {
+  createBackup,
+  encryptedBackup,
+  personalLibrary,
+  readBackup,
+  restoreLibrary,
+} from "../src/lib/backup";
 import { makeBookmark, mergeLibrary, parseImport } from "../src/lib/bookmarks";
 import { decryptData, encryptData, importRecoveryKey, recoveryKey } from "../src/lib/encryption";
 import { seed } from "../src/lib/seed";
@@ -115,4 +121,32 @@ test("Drive encryption uses fresh IVs, authenticates data and separates backup a
   assert.deepEqual(await decryptData(first, key, "drive"), library);
   await assert.rejects(decryptData(first, await importRecoveryKey(recoveryKey()), "drive"));
   await assert.rejects(decryptData(first, key, "backup"));
+});
+
+test("previously shipped flat version-1 backups restore partial preferences, empty collections, and original IDs", async () => {
+  const previous = {
+    format: "nest-backup",
+    version: 1,
+    exportedAt: "2026-10-17T00:00:00.000Z",
+    ...library,
+    preferences: { theme: "dark" },
+  };
+  const restored = await readBackup(JSON.stringify(previous), "");
+  assert.deepEqual(restored.library, library);
+  assert.deepEqual(restored.preferences, { theme: "dark" });
+  assert.deepEqual(restoreLibrary(restored.library, restored.library), restored.library);
+  const noPreferences = { ...previous, preferences: undefined };
+  assert.equal((await readBackup(JSON.stringify(noPreferences), "")).preferences, undefined);
+});
+
+test("duplicate IDs are rejected and equal-time conflicts converge with deletions taking precedence", async () => {
+  await assert.rejects(
+    readBackup(JSON.stringify({ bookmarks: [bookmark, bookmark], lists: [] }), ""),
+  );
+  const one = { bookmarks: [{ ...bookmark, note: "First" }], lists: [] };
+  const two = { bookmarks: [{ ...bookmark, note: "Second" }], lists: [] };
+  assert.deepEqual(restoreLibrary(one, two), restoreLibrary(two, one));
+  const deleted = { bookmarks: [{ ...bookmark, deletedAt: 20 }], lists: [] };
+  assert.equal(restoreLibrary(one, deleted).bookmarks[0].deletedAt, 20);
+  assert.equal(restoreLibrary(deleted, one).bookmarks[0].deletedAt, 20);
 });

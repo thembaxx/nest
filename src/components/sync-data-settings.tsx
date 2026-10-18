@@ -2,13 +2,20 @@
 import { useState } from "react";
 import { ArrowsClockwise, Cloud, Copy, Download, Shield } from "@phosphor-icons/react";
 import { useLibrary } from "./library-provider";
-import { createBackup, encryptedBackup, readBackup, type Backup } from "@/lib/backup";
-import { exportHtml, mergeLibrary } from "@/lib/bookmarks";
+import {
+  createBackup,
+  encryptedBackup,
+  readBackup,
+  restoreLibrary,
+  type Backup,
+} from "@/lib/backup";
+import { exportHtml } from "@/lib/bookmarks";
 import { MAX_BACKUP_BYTES, recoveryKey, validRecoveryKey } from "@/lib/encryption";
-import { googleDriveConfigured, prepareGoogleSignIn } from "@/lib/google-drive";
-import { prepareSyncLibrary } from "@/lib/sync";
+import { activeSyncProvider, googleDriveConfigured, prepareGoogleSignIn } from "@/lib/google-drive";
 
 function download(data: string, extension: string, type: string) {
+  if (new TextEncoder().encode(data).byteLength > MAX_BACKUP_BYTES)
+    throw Error("This export exceeds the 20 MB file limit.");
   const url = URL.createObjectURL(new Blob([data], { type }));
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -42,6 +49,8 @@ export function SyncDataSettings() {
   const [file, setFile] = useState<File>();
   const [restorePassword, setRestorePassword] = useState("");
   const [preview, setPreview] = useState<Backup | null>(null);
+  const [restorePreferences, setRestorePreferences] = useState(true);
+  const legacyConnected = activeSyncProvider(settings) === "nest";
   const status =
     syncState === "synced"
       ? "Up to date"
@@ -316,7 +325,9 @@ export function SyncDataSettings() {
             </button>
             <button
               className="button secondary"
-              onClick={() => download(exportHtml(library), "html", "text/html")}
+              onClick={() =>
+                void run("html", async () => download(exportHtml(library), "html", "text/html"))
+              }
             >
               HTML <Download size={14} />
             </button>
@@ -368,41 +379,53 @@ export function SyncDataSettings() {
           {busy === "restore" ? "Opening…" : "Preview backup"}
         </button>
         {preview && (
-          <div className="note-box" aria-live="polite">
+          <section className="note-box" aria-label="Backup preview" aria-live="polite">
             <strong>
               {preview.library.bookmarks.filter((bookmark) => !bookmark.deletedAt).length} bookmarks
               · {preview.library.lists.filter((list) => !list.deletedAt).length} collections ·{" "}
               {preview.library.bookmarks.filter((bookmark) => bookmark.deletedAt).length} in trash
             </strong>
             <p>
-              Merge into this device. Newer changes win and existing bookmarks stay. Preferences in
-              the backup are restored. Connected sync will include restored changes.
+              Merge into this device. Newer changes win and existing bookmarks stay. Connected sync
+              will include restored changes.
             </p>
+            {preview.preferences && (
+              <label className="restore-preferences">
+                <input
+                  type="checkbox"
+                  checked={restorePreferences}
+                  onChange={(event) => setRestorePreferences(event.target.checked)}
+                />
+                Restore appearance and preferences
+              </label>
+            )}
             <button
               className="button primary"
               disabled={!!busy}
-              onClick={() => {
-                setLibrary((local) => mergeLibrary(prepareSyncLibrary(local), preview.library));
-                if (preview.preferences) setSettings(preview.preferences);
-                setPreview(null);
-                setFile(undefined);
-                setRestorePassword("");
-                toast("Backup restored and merged with this device’s library.");
-              }}
+              onClick={() =>
+                void run("apply-restore", async () => {
+                  setLibrary(restoreLibrary(library, preview.library));
+                  if (restorePreferences && preview.preferences) setSettings(preview.preferences);
+                  setPreview(null);
+                  setFile(undefined);
+                  setRestorePassword("");
+                  toast("Backup restored and merged with this device’s library.");
+                })
+              }
             >
               Restore backup
             </button>
-          </div>
+          </section>
         )}
       </section>
 
       <details className="legacy-sync">
-        <summary>Legacy Nest cloud sync{settings.syncKey ? " · connected" : ""}</summary>
+        <summary>Legacy Nest cloud sync{legacyConnected ? " · connected" : ""}</summary>
         <p className="small muted">
           This older option sends readable bookmark records to Nest’s server. It is not end-to-end
           encrypted. Google Drive and local encrypted backups provide encryption before upload.
         </p>
-        {settings.syncKey ? (
+        {legacyConnected && settings.syncKey ? (
           <>
             <output>{status}</output>
             {keyDisplay(settings.syncKey)}
@@ -417,7 +440,7 @@ export function SyncDataSettings() {
               <button
                 className="text-button"
                 onClick={() => {
-                  setSettings({ syncKey: undefined });
+                  setSettings({ syncKey: undefined, syncProvider: "local" });
                   setShowKey(false);
                 }}
               >
@@ -440,7 +463,7 @@ export function SyncDataSettings() {
                     throw Error(
                       "Legacy cloud sync is unavailable. Your bookmarks are saved on this device.",
                     );
-                  setSettings({ syncKey: recoveryKey() });
+                  setSettings({ syncKey: settings.syncKey || recoveryKey() });
                   setShowKey(true);
                 })
               }

@@ -245,7 +245,13 @@ export function SettingsDialog({
                       setLibrary((s) => ({
                         ...s,
                         bookmarks: s.bookmarks.map((x) =>
-                          x.id === b.id ? { ...x, deletedAt: undefined, updatedAt: Date.now() } : x,
+                          x.id === b.id
+                            ? {
+                                ...x,
+                                deletedAt: undefined,
+                                updatedAt: Math.max(Date.now(), x.updatedAt + 1),
+                              }
+                            : x,
                         ),
                       }));
                       toast("Bookmark restored.");

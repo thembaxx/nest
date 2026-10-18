@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { test, mock } from "node:test";
-import { syncGoogleDrive, DriveAuthError } from "../src/lib/google-drive";
+import {
+  syncGoogleDrive,
+  DriveAuthError,
+  activeSyncProvider,
+  DriveRequestError,
+} from "../src/lib/google-drive";
 import { makeBookmark } from "../src/lib/bookmarks";
 import { encryptData, importRecoveryKey, recoveryKey } from "../src/lib/encryption";
-import type { Library } from "../src/lib/types";
+import { defaultSettings, type Library } from "../src/lib/types";
 
 const empty: Library = { bookmarks: [], lists: [] };
 const session = { accessToken: "ephemeral-google-token", expiresAt: Date.now() + 3600000 };
@@ -190,6 +195,34 @@ test("expired authorization and cancellation never upload", async () => {
     await assert.rejects(
       syncGoogleDrive(session, recoveryKey(), "phone", empty, controller.signal),
     );
+    assert.equal(drive.writes.length, 0);
+  } finally {
+    drive.restore();
+  }
+});
+
+test("upgrades honor an explicit local or Google provider even when a legacy server key is saved", () => {
+  const old = { ...defaultSettings, syncKey: "old-server-key" };
+  assert.equal(activeSyncProvider(old), "nest");
+  assert.equal(activeSyncProvider({ ...old, syncProvider: "local" }), "local");
+  assert.equal(activeSyncProvider({ ...old, syncProvider: "google" }), "google");
+  assert.equal(activeSyncProvider({ ...old, driveKey: recoveryKey() }), "google");
+});
+
+test("permission and quota errors retain HTTP status for retry backoff and never upload", async () => {
+  const drive = fakeDrive();
+  try {
+    for (const status of [403, 429]) {
+      const failed = mock.method(globalThis, "fetch", async () => new Response(null, { status }));
+      try {
+        await assert.rejects(
+          sync(recoveryKey(), "phone", empty),
+          (error: unknown) => error instanceof DriveRequestError && error.status === status,
+        );
+      } finally {
+        failed.mock.restore();
+      }
+    }
     assert.equal(drive.writes.length, 0);
   } finally {
     drive.restore();
