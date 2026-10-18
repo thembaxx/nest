@@ -38,11 +38,23 @@ async function settings(page: Page) {
 async function stored(page: Page): Promise<Library> {
   return page.evaluate(
     () =>
-      new Promise((resolve) => {
+      new Promise<Library>((resolve, reject) => {
         const open = indexedDB.open("nest-library", 1);
+        // A read must not create an empty database ahead of the app's first write.
+        open.onupgradeneeded = () => open.transaction?.abort();
+        open.onerror = () => reject(open.error);
         open.onsuccess = () => {
           const db = open.result;
+          if (!db.objectStoreNames.contains("library")) {
+            db.close();
+            reject(Error("Library storage is not ready yet."));
+            return;
+          }
           const request = db.transaction("library").objectStore("library").get("current");
+          request.onerror = () => {
+            db.close();
+            reject(request.error);
+          };
           request.onsuccess = () => {
             resolve(request.result);
             db.close();
