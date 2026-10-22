@@ -2,11 +2,11 @@
 
 Nest works without an account, subscription, database, or billing details. Open **Settings → Sync & data** to choose one of these paths.
 
-| Option | Best for | Cost and limits |
-| --- | --- | --- |
-| Encrypted local backup and JSON restore | Changing devices, offline recovery, keeping your own copy | No service or setup. Save the file anywhere. Up to 20 MB, 10,000 bookmarks including trash, and 200 collections including removed collections. |
-| Google Drive | Syncing your own devices with the same Google account | Uses the account's storage. Google accounts normally include 15 GB shared across Drive, Gmail, and Photos. Requires a free OAuth project; no Nest database. Standard API usage is currently available at no additional cost, subject to Google's quotas and policy changes. |
-| Existing Neon sync | Automatic retries across sessions and optional scheduled link checking | Uses this deployment's database. Start with Neon's Free plan, monitor its current limits, and leave paid upgrades disabled. Every user's collection shares the deployment's database allowance. |
+| Option                                  | Best for                                                               | Cost and limits                                                                                                                                                                                                                                                             |
+| --------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Encrypted local backup and JSON restore | Changing devices, offline recovery, keeping your own copy              | No service or setup. Save the file anywhere. Up to 20 MB, 10,000 bookmarks including trash, and 200 collections including removed collections.                                                                                                                              |
+| Google Drive                            | Syncing your own devices with the same Google account                  | Uses the account's storage. Google accounts normally include 15 GB shared across Drive, Gmail, and Photos. Requires a free OAuth project; no Nest database. Standard API usage is currently available at no additional cost, subject to Google's quotas and policy changes. |
+| Existing Neon sync                      | Automatic retries across sessions and optional scheduled link checking | Uses this deployment's database. Start with Neon's Free plan, monitor its current limits, and leave paid upgrades disabled. Every user's collection shares the deployment's database allowance.                                                                             |
 
 For a zero-budget deployment, start with local backups and optionally Google Drive. No paid service is provisioned by this implementation. Keep a downloaded backup even when syncing.
 
