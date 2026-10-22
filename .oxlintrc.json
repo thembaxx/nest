@@ -1,18 +1,10 @@
 {
-  "plugins": [
-    "react",
-    "typescript",
-    "jsx-a11y"
-  ],
+  "plugins": ["react", "typescript", "jsx-a11y"],
   "categories": {
     "correctness": "error"
   },
   "rules": {
     "no-unused-vars": "warn"
   },
-  "ignorePatterns": [
-    ".next",
-    "node_modules",
-    "public/sw.js"
-  ]
+  "ignorePatterns": [".next", "node_modules", "public/sw.js"]
 }
