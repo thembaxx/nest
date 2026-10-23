@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import ts from "typescript";
+import { transformSync } from "esbuild";
 
 declare global {
   interface Window {
@@ -9,10 +9,12 @@ declare global {
   }
 }
 const compiled = (path: string) =>
-  ts.transpileModule(readFileSync(path, "utf8"), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-const installer = `(()=>{const palette={exports:{}};((exports)=>{${compiled("src/lib/page-palette.ts")}})(palette.exports);const edges={exports:{}};((exports,require)=>{${compiled("src/lib/page-edges.ts")}})(edges.exports,()=>palette.exports);window.installEdgesForTest=edges.exports.installPageEdges;})();`;
+  transformSync(readFileSync(path, "utf8"), {
+    loader: "ts",
+    format: "cjs",
+    target: "es2022",
+  }).code;
+const installer = `(()=>{const palette={exports:{}};((module,exports)=>{${compiled("src/lib/page-palette.ts")}})(palette,palette.exports);const edges={exports:{}};((module,exports,require)=>{${compiled("src/lib/page-edges.ts")}})(edges,edges.exports,()=>palette.exports);window.installEdgesForTest=edges.exports.installPageEdges;})();`;
 async function colors(page: Page) {
   return page.evaluate(() => {
     const root = document.documentElement;
