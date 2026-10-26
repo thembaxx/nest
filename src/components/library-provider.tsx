@@ -21,7 +21,7 @@ import { ingestBookmarks, type IngestOptions } from "@/lib/organize";
 import { prepareSyncLibrary } from "@/lib/sync";
 import { readLibrary, writeLibrary } from "@/lib/storage";
 import { restoreLibrary } from "@/lib/backup";
-import { recoveryKey } from "@/lib/encryption";
+import { normalizeRecoveryKey, recoveryKey } from "@/lib/encryption";
 import {
   authorizeGoogleDrive,
   activeSyncProvider,
@@ -248,14 +248,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       try {
         const session = await authorizeGoogleDrive();
         controller.signal.throwIfAborted();
-        const key = (
+        const key = normalizeRecoveryKey(
           existingKey ||
-          settingsRef.current.driveKey ||
-          settingsRef.current.drivePendingKey ||
-          recoveryKey()
-        )
-          .trim()
-          .toLowerCase();
+            settingsRef.current.driveKey ||
+            settingsRef.current.drivePendingKey ||
+            recoveryKey(),
+        );
         const deviceId = settingsRef.current.driveDeviceId || crypto.randomUUID();
         // Persist the candidate before uploading: a lost response must not strand encrypted data.
         const pending = { ...settingsRef.current, drivePendingKey: key, driveDeviceId: deviceId };
