@@ -25,7 +25,7 @@ function convert(items: ExternalItem[], folders: Map<string, string> = new Map()
     const folder = text(item.collection || item.folder || item.category);
     const date = Date.parse(text(item.created || item.created_at || item.createdAt));
     bookmarks.push(makeBookmark(url, {
-      title: (text(item.title || item.name) || undefined)?.slice(0, 500),
+      ...(text(item.title || item.name) ? { title: text(item.title || item.name).slice(0, 500) } : {}),
       description: text(item.excerpt || item.description).slice(0, 2000),
       tags,
       listIds: list(folder),
