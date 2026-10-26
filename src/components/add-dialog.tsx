@@ -18,6 +18,7 @@ import { cleanFolderName, folderKey, parsePaste } from "@/lib/paste";
 import { bookmarkSchema, listSchema, type Bookmark } from "@/lib/types";
 import { celebrate } from "@/lib/celebrate";
 import { parseCsvImport } from "@/lib/csv-import";
+import { asXImport } from "@/lib/x-import";
 import { parseServiceImport, parseRaindropItems } from "@/lib/service-import";
 import type { Library } from "@/lib/types";
 export function AddDialog({
@@ -26,6 +27,7 @@ export function AddDialog({
   importMode = false,
   xImportMode = false,
   onOpenXGuide,
+  onImportedX,
   initialCollection = "",
 }: {
   onClose: () => void;
@@ -33,6 +35,7 @@ export function AddDialog({
   importMode?: boolean;
   xImportMode?: boolean;
   onOpenXGuide?: () => void;
+  onImportedX?: () => void;
   initialCollection?: string;
 }) {
   const { add, library, settings, toast, setSettings } = useLibrary();
@@ -150,16 +153,21 @@ export function AddDialog({
     setImportPreview(null);
     try {
       if (file.size > 20 * 1024 * 1024) throw Error("Please use a file smaller than 20 MB.");
+      if (xImportMode && !file.name.toLowerCase().endsWith(".csv"))
+        throw Error("X imports require a CSV export.");
       const content = await file.text();
       const parsed = file.name.toLowerCase().endsWith(".csv")
         ? parseCsvImport(content)
         : file.name.toLowerCase().endsWith(".json")
           ? parseServiceImport(JSON.parse(content)) ?? parseImport(content, file.name, { autoOrganize: settings.autoSort })
           : parseImport(content, file.name, { autoOrganize: settings.autoSort });
-      const bookmarks = parsed.bookmarks.map((bookmark) => bookmarkSchema.parse(bookmark));
-      const lists = parsed.lists.map((list) => listSchema.parse(list));
+      const prepared = xImportMode ? asXImport(parsed) : parsed;
+      const bookmarks = prepared.bookmarks.map((bookmark) => bookmarkSchema.parse(bookmark));
+      const lists = prepared.lists.map((list) => listSchema.parse(list));
       if (!bookmarks.length)
-        throw Error("No valid bookmarks found. Choose a browser HTML, JSON or CSV export.");
+        throw Error(xImportMode
+          ? "No X post links found. Export your saved X bookmarks as a CSV with a URL or Tweet_URL column."
+          : "No valid bookmarks found. Choose a browser HTML, JSON or CSV export.");
       setImportPreview({ bookmarks, lists });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to read this file.");
@@ -193,6 +201,7 @@ export function AddDialog({
     setBusy(true);
     try {
       announce(add(importPreview.bookmarks, importPreview.lists), true);
+      if (xImportMode) onImportedX?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to import bookmarks.");
     } finally {
@@ -201,7 +210,7 @@ export function AddDialog({
   }
   return (
     <Modal
-      title={tab === "paste" ? "Something worth keeping." : "Bring your bookmarks home."}
+      title={xImportMode ? "Import from X." : tab === "paste" ? "Something worth keeping." : "Bring your bookmarks home."}
       subtitle={
         initialCollection && tab === "paste"
           ? "Paste new links or move bookmarks you’ve already saved. Choose a destination below."
@@ -211,7 +220,7 @@ export function AddDialog({
         if (!busy) onClose();
       }}
     >
-      <div className="segmented">
+      {!xImportMode && <div className="segmented">
         <button
           disabled={busy}
           className={tab === "paste" ? "active" : ""}
@@ -226,7 +235,7 @@ export function AddDialog({
         >
           <Upload size={16} /> Import bookmarks
         </button>
-      </div>
+      </div>}
       {tab === "paste" ? (
         <>
           <label className="field-label" htmlFor="links">
