@@ -39,6 +39,7 @@ import { AddDialog } from "./add-dialog";
 import { SettingsDialog } from "./settings-dialog";
 import { DetailDialog } from "./detail-dialog";
 import { OnboardingDialog } from "./onboarding-dialog";
+import { XImportWizard } from "./x-import-wizard";
 import { AssistantDialog } from "./assistant-dialog";
 import { topics, type View } from "@/lib/types";
 import { CollectionsSection } from "./collections-section";
@@ -64,6 +65,8 @@ export function NestApp() {
   const [dialog, setDialog] = useState<
     | "add"
     | "import"
+    | "x-import"
+    | "x-upload"
     | "settings"
     | "sync-settings"
     | "ai-settings"
@@ -664,14 +667,19 @@ export function NestApp() {
           <span>Settings</span>
         </button>
       </nav>
-      {(dialog === "add" || dialog === "import") && (
+      {(dialog === "add" || dialog === "import" || dialog === "x-upload") && (
         <AddDialog
           onClose={close}
           initial={initialLink}
-          importMode={dialog === "import"}
+          importMode={dialog === "import" || dialog === "x-upload"}
+          xImportMode={dialog === "x-upload"}
+          onOpenXGuide={() => setDialog("x-import")}
           initialCollection={dialog === "add" ? currentCollection?.name : undefined}
         />
       )}{" "}
+      {dialog === "x-import" && settings.xImportEnabled && (
+        <XImportWizard onClose={close} onImport={() => setDialog("x-upload")} />
+      )}
       {dialog === "saved" && currentCollection && (
         <SavedBookmarksDialog collectionId={currentCollection.id} onClose={close} />
       )}
@@ -698,6 +706,7 @@ export function NestApp() {
           }
           onClose={close}
           onInstall={() => void install()}
+          onOpenXImport={() => setDialog("x-import")}
         />
       )}{" "}
       {dialog === "welcome" && (
