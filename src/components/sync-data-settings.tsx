@@ -10,7 +10,12 @@ import {
   type Backup,
 } from "@/lib/backup";
 import { exportHtml } from "@/lib/bookmarks";
-import { MAX_BACKUP_BYTES, normalizeRecoveryKey, recoveryKey, validRecoveryKey } from "@/lib/encryption";
+import {
+  MAX_BACKUP_BYTES,
+  normalizeRecoveryKey,
+  recoveryKey,
+  validRecoveryKey,
+} from "@/lib/encryption";
 import { activeSyncProvider, googleDriveConfigured, prepareGoogleSignIn } from "@/lib/google-drive";
 
 function download(data: string, extension: string, type: string) {
@@ -119,7 +124,10 @@ export function SyncDataSettings() {
     <div className="sync-data-settings">
       <div className="settings-heading">
         <h3>Your library, wherever you land.</h3>
-        <p>Keep saving offline. Connect Google Drive once to sync your personal bookmarks across devices, or export a private backup anytime.</p>
+        <p>
+          Keep saving offline. Connect Google Drive once to sync your personal bookmarks across
+          devices, or export a private backup anytime.
+        </p>
       </div>
       <div className="privacy-note">
         <Shield size={23} />
@@ -135,8 +143,8 @@ export function SyncDataSettings() {
         <div className="note-box" aria-label="Start Google Drive sync">
           <strong>New to sync? Start here.</strong>
           <p>
-            1. Connect your Google account below. 2. Save the recovery key that appears.
-            3. Use that same account and key on your other devices.
+            1. Connect your Google account below. 2. Save the recovery key that appears. 3. Use
+            that same account and key on your other devices.
           </p>
         </div>
       )}
@@ -207,8 +215,8 @@ export function SyncDataSettings() {
             <strong>Next: connect another device</strong>
             <p>
               Copy your recovery key, then open Nest on your other device. Choose
-              “Already syncing on another device?”, paste the key and select the same Google account.
-              Keep the key in your password manager — Nest cannot recover it for you.
+              “Already syncing on another device?”, paste the key and select the same Google
+              account. Keep the key in your password manager — Nest cannot recover it for you.
             </p>
             {keyDisplay(settings.driveKey)}
           </div>
@@ -239,13 +247,13 @@ export function SyncDataSettings() {
           <div className="note-box" aria-label="Connect an existing library">
             <strong>Already have Nest on another device?</strong>
             <p>
-              Get the recovery key from that device under Settings → Sync &amp; data.
-              Use the same Google account here; this merges both devices without replacing bookmarks.
+              Get the recovery key from that device under Settings → Sync &amp; data. Use the same
+              Google account here; this merges both devices without replacing bookmarks.
             </p>
-          <label className="field-label" htmlFor="drive-recovery">
-            Already syncing on another device?
-          </label>
-          <div className="inline-input">
+            <label className="field-label" htmlFor="drive-recovery">
+              Already syncing on another device?
+            </label>
+            <div className="inline-input">
             <input
               id="drive-recovery"
               type="password"
@@ -259,7 +267,9 @@ export function SyncDataSettings() {
             />
             <button
               className="button secondary"
-              disabled={!googleDriveConfigured || !validRecoveryKey(normalizeRecoveryKey(driveKey)) || !!busy}
+              disabled={
+                !googleDriveConfigured || !validRecoveryKey(normalizeRecoveryKey(driveKey)) || !!busy
+              }
               onPointerEnter={prepareGoogleSignIn}
               onFocus={prepareGoogleSignIn}
               onClick={() =>
@@ -272,12 +282,12 @@ export function SyncDataSettings() {
             >
               Connect Google Drive
             </button>
-          </div>
-          {driveKey && !validRecoveryKey(normalizeRecoveryKey(driveKey)) && (
-            <p className="small muted" role="status">
-              Enter all 64 characters of the recovery key. Spaces and hyphens are okay.
-            </p>
-          )}
+            </div>
+            {driveKey && !validRecoveryKey(normalizeRecoveryKey(driveKey)) && (
+              <p className="small muted" role="status">
+                Enter all 64 characters of the recovery key. Spaces and hyphens are okay.
+              </p>
+            )}
           </div>
         </>
       )}
@@ -297,7 +307,8 @@ export function SyncDataSettings() {
           <h3>Backup &amp; export</h3>
           <p>
             Download a portable copy whenever you want. Encrypted backups include your bookmarks,
-            collections, notes, trash, and safe preferences — never your Google session or recovery key.
+            collections, notes, trash, and safe preferences — never your Google session or
+            recovery key.
           </p>
         </div>
         <label className="field-label" htmlFor="backup-password">
