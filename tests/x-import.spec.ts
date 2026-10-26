@@ -91,3 +91,25 @@ test("enabled X import can be reopened from Settings after reload", async ({ pag
   await page.getByRole("button", { name: "Import", exact: true }).click();
   await expect(page.getByRole("button", { name: "Open X import guide" })).toBeVisible();
 });
+
+
+test("the optional X tab is reachable on a phone without changing bottom navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "nest-settings",
+      JSON.stringify({ onboarded: true, theme: "light", effects: false, xImportEnabled: true }),
+    );
+  });
+  await page.goto("/");
+  const sourceTabs = page.getByRole("tablist", { name: "Bookmark source" });
+  await expect(sourceTabs).toBeVisible();
+  await sourceTabs.getByRole("tab", { name: /X bookmarks/ }).click();
+  await expect(page.getByRole("heading", { name: "Your saved posts from X" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Import from X" }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Library", exact: true }).click();
+  await expect(sourceTabs.getByRole("tab", { name: /Bookmarks/ }).first()).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+});
