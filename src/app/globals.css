@@ -181,3 +181,12 @@ html { scroll-padding-top: calc(var(--edge-top-size) + 12px); scroll-padding-bot
 .x-import-instructions li{padding-left:3px}
 .x-import-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:22px}
 @media(max-width:600px){.x-import-steps{gap:5px}.x-import-steps li{font-size:11px;gap:4px;padding:9px 3px}.x-import-steps li>span{width:19px;height:19px}.x-import-content{min-height:0}.x-import-footer .button{min-height:43px}}
+
+
+/* Switch between regular bookmarks and the opt-in X collection without altering bottom navigation. */
+.bookmark-source-tabs{display:flex;align-items:stretch;width:max-content;max-width:100%;gap:4px;padding:5px;margin:0 0 23px;border:1px solid var(--line);border-radius:15px;background:var(--input)}
+.bookmark-source-tabs button{display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;min-height:40px;padding:10px 15px;color:var(--muted);border:1px solid transparent;border-radius:11px;font-size:12px;font-weight:600;transition:background-color .2s,color .2s,border-color .2s}
+.bookmark-source-tabs button.active{background:var(--surface);border-color:var(--line);box-shadow:var(--shadow);color:var(--green)}
+.bookmark-source-tabs button span{font-variant-numeric:tabular-nums;font-size:11px;opacity:.7}
+@media(max-width:600px){.bookmark-source-tabs{width:100%;margin-bottom:17px}.bookmark-source-tabs button{flex:1;min-width:0;padding:9px 7px;gap:5px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){.bookmark-source-tabs button{transition:none}}
