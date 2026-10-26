@@ -18,7 +18,7 @@ import { cleanFolderName, folderKey, parsePaste } from "@/lib/paste";
 import { bookmarkSchema, listSchema, type Bookmark } from "@/lib/types";
 import { celebrate } from "@/lib/celebrate";
 import { parseCsvImport } from "@/lib/csv-import";
-import { parseServiceImport } from "@/lib/service-import";
+import { parseServiceImport, parseRaindropItems } from "@/lib/service-import";
 import type { Library } from "@/lib/types";
 export function AddDialog({
   onClose,
@@ -159,6 +159,27 @@ export function AddDialog({
       setImportPreview({ bookmarks, lists });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to read this file.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function importRaindrop() {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/import/raindrop/items", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.error || "Raindrop import failed.");
+      const folders = new Map<number, string>(
+        (data.collections as { id: number; title: string }[]).map(c => [c.id, c.title]),
+      );
+      const parsed = parseRaindropItems(data.items, folders);
+      setImportPreview({
+        bookmarks: parsed.bookmarks.map(b => bookmarkSchema.parse(b)),
+        lists: parsed.lists.map(l => listSchema.parse(l)),
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to import from Raindrop.");
     } finally {
       setBusy(false);
     }
@@ -337,6 +358,14 @@ export function AddDialog({
         </>
       ) : (
         <>
+          <div className="note-box">
+            <strong>Import directly from Raindrop.io</strong>
+            <p>Connect your account, then preview your bookmarks before importing. Access is temporary and is not used for ongoing sync.</p>
+            <a className="button secondary" href="/api/import/raindrop/start">Connect Raindrop</a>
+            <button className="button secondary" disabled={busy} onClick={() => void importRaindrop()}>
+              Load connected bookmarks
+            </button>
+          </div>
           <label
             htmlFor="import-file"
             className="import-drop"
