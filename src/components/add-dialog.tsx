@@ -17,6 +17,8 @@ import { classify, makeBookmark, parseImport, canonicalUrl } from "@/lib/bookmar
 import { cleanFolderName, folderKey, parsePaste } from "@/lib/paste";
 import { bookmarkSchema, listSchema, type Bookmark } from "@/lib/types";
 import { celebrate } from "@/lib/celebrate";
+import { parseCsvImport } from "@/lib/csv-import";
+import type { Library } from "@/lib/types";
 export function AddDialog({
   onClose,
   initial = "",
@@ -35,6 +37,7 @@ export function AddDialog({
   const [progress, setProgress] = useState("");
   const [folderOverride, setFolderOverride] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [importPreview, setImportPreview] = useState<Library | null>(null);
   const entries = useMemo(() => parsePaste(text), [text]);
   const urls = [...new Set(entries.map((entry) => entry.url))];
   const inferredFolders = [
@@ -139,18 +142,31 @@ export function AddDialog({
   async function importFile(file: File) {
     setBusy(true);
     setError("");
+    setImportPreview(null);
     try {
       if (file.size > 20 * 1024 * 1024) throw Error("Please use a file smaller than 20 MB.");
-      const parsed = parseImport(await file.text(), file.name, { autoOrganize: settings.autoSort });
+      const content = await file.text();
+      const parsed = file.name.toLowerCase().endsWith(".csv")
+        ? parseCsvImport(content)
+        : parseImport(content, file.name, { autoOrganize: settings.autoSort });
       const bookmarks = parsed.bookmarks.map((bookmark) => bookmarkSchema.parse(bookmark));
       const lists = parsed.lists.map((list) => listSchema.parse(list));
       if (!bookmarks.length)
-        throw Error(
-          "No bookmarks found. Choose a browser HTML export or a Nest / Firefox / Chrome JSON file.",
-        );
-      announce(add(bookmarks, lists), true);
+        throw Error("No valid bookmarks found. Choose a browser HTML, JSON or CSV export.");
+      setImportPreview({ bookmarks, lists });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to read this file.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  function confirmImport() {
+    if (!importPreview) return;
+    setBusy(true);
+    try {
+      announce(add(importPreview.bookmarks, importPreview.lists), true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to import bookmarks.");
     } finally {
       setBusy(false);
     }
@@ -332,14 +348,14 @@ export function AddDialog({
             <strong>
               {busy ? "Making room for your collection…" : "Drop your bookmark file here"}
             </strong>
-            <span>HTML from any browser, or JSON from Nest, Chrome, or Firefox</span>
+            <span>HTML, JSON or CSV exports from browsers and bookmark apps</span>
             <span className="button secondary">
               Choose a file <ArrowUpRight size={15} />
             </span>
             <input
               id="import-file"
               type="file"
-              accept=".html,.htm,.json"
+              accept=".html,.htm,.json,.csv,text/csv"
               disabled={busy}
               onChange={(event) => {
                 if (event.target.files?.[0]) void importFile(event.target.files[0]);
@@ -347,6 +363,22 @@ export function AddDialog({
               aria-label="Choose bookmark import file"
             />
           </label>
+          {importPreview && (
+            <div className="note-box" role="status">
+              <strong>Ready to import {importPreview.bookmarks.length} bookmarks</strong>
+              <p>
+                {importPreview.lists.length} collections · {
+                  importPreview.bookmarks.filter(b => existing.has(canonicalUrl(b.url))).length
+                } already saved. Existing bookmarks will be kept and matching folders reused.
+              </p>
+              <button className="button primary" disabled={busy} onClick={confirmImport}>
+                <Check size={16} /> Confirm import
+              </button>
+              <button className="button secondary" disabled={busy} onClick={() => setImportPreview(null)}>
+                Cancel
+              </button>
+            </div>
+          )}
           <div className="note-box">
             <strong>A fresh start, without starting over.</strong>
             <p>
