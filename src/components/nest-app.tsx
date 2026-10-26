@@ -165,16 +165,16 @@ export function NestApp() {
     view === "x"
       ? "Your saved posts from X"
       : view === "favorites"
-      ? "Your favorites"
-      : view === "unread"
-        ? "A little reading, for later"
-        : view === "archive"
-          ? "Tucked away, for now"
-          : view === "dead"
-            ? "Links that need a little care"
-            : view.startsWith("list:")
-              ? collections.find((l) => l.id === view.slice(5))?.name || "Your collection"
-              : "Good things, kept close.";
+        ? "Your favorites"
+        : view === "unread"
+          ? "A little reading, for later"
+          : view === "archive"
+            ? "Tucked away, for now"
+            : view === "dead"
+              ? "Links that need a little care"
+              : view.startsWith("list:")
+                ? collections.find((l) => l.id === view.slice(5))?.name || "Your collection"
+                : "Good things, kept close.";
   const navigate = (v: View) => {
     setView(v);
     setTopic("All");
@@ -598,7 +598,7 @@ export function NestApp() {
                 {[
                   "All",
                   ...topics.filter((t) => t !== "Unsorted"),
-                  ...(active.some((b) => b.topic === "Unsorted") ? ["Unsorted"] : []),
+                  ...((view === "x" ? xBookmarks : view === "all" || view === "favorites" || view === "unread" ? ordinary : active).some((b) => b.topic === "Unsorted") ? ["Unsorted"] : []),
                 ].map((t) => (
                   <button
                     key={t}
