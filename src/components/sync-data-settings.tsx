@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowsClockwise, Cloud, Copy, Download, Shield } from "@phosphor-icons/react";
 import { useLibrary } from "./library-provider";
 import {
@@ -10,7 +10,12 @@ import {
   type Backup,
 } from "@/lib/backup";
 import { exportHtml } from "@/lib/bookmarks";
-import { MAX_BACKUP_BYTES, recoveryKey, validRecoveryKey } from "@/lib/encryption";
+import {
+  MAX_BACKUP_BYTES,
+  normalizeRecoveryKey,
+  recoveryKey,
+  validRecoveryKey,
+} from "@/lib/encryption";
 import { activeSyncProvider, googleDriveConfigured, prepareGoogleSignIn } from "@/lib/google-drive";
 
 function download(data: string, extension: string, type: string) {
@@ -50,6 +55,10 @@ export function SyncDataSettings() {
   const [restorePassword, setRestorePassword] = useState("");
   const [preview, setPreview] = useState<Backup | null>(null);
   const [restorePreferences, setRestorePreferences] = useState(true);
+  // Preload only when this settings panel opens, before a mobile tap needs a popup.
+  useEffect(() => {
+    prepareGoogleSignIn();
+  }, []);
   const legacyConnected = activeSyncProvider(settings) === "nest";
   const status =
     syncState === "synced"
@@ -78,36 +87,47 @@ export function SyncDataSettings() {
     }
   }
   function keyDisplay(key: string) {
+    const grouped = key.match(/.{1,8}/g)?.join(" ") ?? key;
+    const copyKey = async () => {
+      try {
+        await navigator.clipboard.writeText(key);
+        toast("Recovery key copied. Keep it in a private, safe place.");
+      } catch {
+        setShowKey(true);
+        toast("Clipboard unavailable. Show and select the recovery key instead.");
+      }
+    };
     return (
-      <>
-        <button className="text-button" onClick={() => setShowKey(!showKey)}>
-          {showKey ? "Hide" : "Show"} my recovery key
-        </button>
+      <div className="sync-recovery">
+        <div className="flex-gap">
+          <button
+            type="button"
+            className="text-button"
+            aria-expanded={showKey}
+            onClick={() => setShowKey(!showKey)}
+          >
+            {showKey ? "Hide" : "Show"} my recovery key
+          </button>
+          <button type="button" className="button secondary" onClick={() => void copyKey()}>
+            <Copy size={16} /> Copy recovery key
+          </button>
+        </div>
         {showKey && (
           <div className="recovery-key">
-            <code>{key}</code>
-            <button
-              className="icon-button"
-              aria-label="Copy recovery key"
-              onClick={() => {
-                void navigator.clipboard
-                  .writeText(key)
-                  .then(() => toast("Recovery key copied. Store it somewhere safe."))
-                  .catch(() => toast("Select and copy the recovery key."));
-              }}
-            >
-              <Copy size={17} />
-            </button>
+            <code>{grouped}</code>
           </div>
         )}
-      </>
+      </div>
     );
   }
   return (
     <div className="sync-data-settings">
       <div className="settings-heading">
         <h3>Your library, wherever you land.</h3>
-        <p>Saved on this device first. Choose encrypted sync or take a backup with you.</p>
+        <p>
+          Keep saving offline. Connect Google Drive once to sync your personal bookmarks across
+          devices, or export a private backup anytime.
+        </p>
       </div>
       <div className="privacy-note">
         <Shield size={23} />
@@ -119,11 +139,20 @@ export function SyncDataSettings() {
           </p>
         </div>
       </div>
+      {!settings.driveKey && (
+        <div className="note-box" aria-label="Start Google Drive sync">
+          <strong>New to sync? Start here.</strong>
+          <p>
+            1. Connect your Google account below. 2. Save the recovery key that appears. 3. Use
+            that same account and key on your other devices.
+          </p>
+        </div>
+      )}
       <div className="sync-panel">
         <Cloud size={26} />
         <div>
           <strong>{settings.driveKey ? "Google Drive sync" : "Sync with Google Drive"}</strong>
-          <output>
+          <output aria-live="polite">
             {settings.driveKey
               ? status
               : "Bookmarks, collections, notes, and trash stay together across your devices."}
@@ -158,7 +187,7 @@ export function SyncDataSettings() {
               void run("google", async () => {
                 await connectGoogle();
                 setShowKey(true);
-                toast("Google Drive connected. Save your recovery key for your other devices.");
+                toast("Connected! Copy your recovery key before setting up another device.");
               })
             }
           >
@@ -182,11 +211,18 @@ export function SyncDataSettings() {
       )}
       {settings.driveKey ? (
         <>
-          {keyDisplay(settings.driveKey)}
+          <div className="note-box" aria-label="Set up another device">
+            <strong>Next: connect another device</strong>
+            <p>
+              Copy your recovery key, then open Nest on your other device. Choose
+              “Already syncing on another device?”, paste the key and select the same Google
+              account. Keep the key in your password manager — Nest cannot recover it for you.
+            </p>
+            {keyDisplay(settings.driveKey)}
+          </div>
           <p className="small muted">
-            On another device, open Nest, enter this key below, and connect the same Google account.
-            The key is saved in this browser. Google access tokens stay in memory; reconnect after
-            reopening Nest or when access expires.
+            Your encrypted library stays in Google Drive. After reopening Nest, tap
+            “Reconnect Google” to resume sync; changes made offline remain on this device until then.
           </p>
           <button
             className="text-button"
@@ -208,10 +244,16 @@ export function SyncDataSettings() {
               copy remains.
             </p>
           )}
-          <label className="field-label" htmlFor="drive-recovery">
-            Already syncing on another device?
-          </label>
-          <div className="inline-input">
+          <div className="note-box" aria-label="Connect an existing library">
+            <strong>Already have Nest on another device?</strong>
+            <p>
+              Get the recovery key from that device under Settings → Sync &amp; data. Use the same
+              Google account here; this merges both devices without replacing bookmarks.
+            </p>
+            <label className="field-label" htmlFor="drive-recovery">
+              Already syncing on another device?
+            </label>
+            <div className="inline-input">
             <input
               id="drive-recovery"
               type="password"
@@ -219,16 +261,20 @@ export function SyncDataSettings() {
               spellCheck={false}
               value={driveKey}
               onChange={(event) => setDriveKey(event.target.value)}
-              placeholder="Google Drive recovery key"
+              autoCapitalize="off"
+              autoCorrect="off"
+              placeholder="Paste your 64-character recovery key"
             />
             <button
               className="button secondary"
-              disabled={!googleDriveConfigured || !validRecoveryKey(driveKey.trim()) || !!busy}
+              disabled={
+                !googleDriveConfigured || !validRecoveryKey(normalizeRecoveryKey(driveKey)) || !!busy
+              }
               onPointerEnter={prepareGoogleSignIn}
               onFocus={prepareGoogleSignIn}
               onClick={() =>
                 void run("google", async () => {
-                  await connectGoogle(driveKey.trim());
+                  await connectGoogle(normalizeRecoveryKey(driveKey));
                   setDriveKey("");
                   toast("Your encrypted Google Drive library is connected.");
                 })
@@ -236,6 +282,12 @@ export function SyncDataSettings() {
             >
               Connect Google Drive
             </button>
+            </div>
+            {driveKey && !validRecoveryKey(normalizeRecoveryKey(driveKey)) && (
+              <p className="small muted" role="status">
+                Enter all 64 characters of the recovery key. Spaces and hyphens are okay.
+              </p>
+            )}
           </div>
         </>
       )}
@@ -252,10 +304,11 @@ export function SyncDataSettings() {
 
       <section className="backup-section" aria-label="Local backup and restore">
         <div className="settings-heading">
-          <h3>Keep a copy for yourself</h3>
+          <h3>Backup &amp; export</h3>
           <p>
-            A portable backup keeps your bookmarks, collections, notes, trash, and preferences. Sync
-            keys and sign-in sessions are excluded.
+            Download a portable copy whenever you want. Encrypted backups include your bookmarks,
+            collections, notes, trash, and safe preferences — never your Google session or
+            recovery key.
           </p>
         </div>
         <label className="field-label" htmlFor="backup-password">

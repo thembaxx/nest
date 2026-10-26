@@ -365,13 +365,15 @@ export function NestApp() {
             <strong>{view.startsWith("list:") ? "Collection" : "My library"}</strong>
           </div>
           <div className="topbar-right">
-            <button className="sync-status" onClick={() => setDialog("sync-settings")}>
+            <button className="sync-status" aria-label="View bookmark sync status and backups" onClick={() => setDialog("sync-settings")}>
               {!online ? <CloudOff size={15} /> : <Cloud size={15} />}
               <span>
                 {!online
                   ? "Offline · saved locally"
                   : syncState === "synced"
-                    ? "All tucked away"
+                    ? settings.syncProvider === "google"
+                      ? "Google Drive · Up to date"
+                      : "Cloud sync · Up to date"
                     : syncState === "syncing"
                       ? "Syncing…"
                       : syncState === "reconnect"
@@ -379,7 +381,7 @@ export function NestApp() {
                         : syncState === "unconfigured"
                           ? "Sync needs setup"
                           : syncState === "error"
-                            ? "Sync will retry"
+                            ? "Sync error · Open settings"
                             : "Saved on this device"}
               </span>
               <i className={!online ? "offline" : ""} />

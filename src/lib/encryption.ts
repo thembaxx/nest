@@ -27,6 +27,10 @@ export function recoveryKey() {
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
 }
+// Accept visually grouped keys when pairing a second device; store only the canonical form.
+export function normalizeRecoveryKey(value: string) {
+  return value.replace(/[\s-]/g, "").toLowerCase();
+}
 export function validRecoveryKey(value: string) {
   return /^[a-f0-9]{64}$/i.test(value);
 }

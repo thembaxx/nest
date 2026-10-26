@@ -244,6 +244,8 @@ test("Google pairing merges devices, never sends plaintext, and asks to reconnec
     await settings(phone);
     await phone.getByRole("button", { name: "Set up Google Drive", exact: true }).click();
     await expect(phone.getByText("Up to date", { exact: true })).toBeVisible();
+    await expect(phone.getByText("Next: connect another device")).toBeVisible();
+    await expect(phone.getByRole("button", { name: "Copy recovery key" })).toBeVisible();
     const key = await phone.evaluate(
       () => JSON.parse(localStorage.getItem("nest-settings")!).driveKey as string,
     );
@@ -251,7 +253,8 @@ test("Google pairing merges devices, never sends plaintext, and asks to reconnec
     const laptop = await second.newPage();
     await laptop.goto("/");
     await settings(laptop);
-    await laptop.getByLabel("Already syncing on another device?").fill(key);
+    // The recovery key can be pasted in easy-to-read groups.
+    await laptop.getByLabel("Already syncing on another device?").fill(key.match(/.{8}/g)!.join(" "));
     await laptop.getByRole("button", { name: "Connect Google Drive", exact: true }).click();
     await expect(laptop.getByText("Up to date", { exact: true })).toBeVisible();
     await expect.poll(async () => (await stored(laptop)).bookmarks.length).toBe(3);
