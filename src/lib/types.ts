@@ -59,6 +59,7 @@ export type Settings = {
   model?: string;
   healthChecks: boolean;
   effects: boolean;
+  xImportEnabled?: boolean;
 };
 export const defaultSettings: Settings = {
   theme: "system",
@@ -66,6 +67,7 @@ export const defaultSettings: Settings = {
   onboarded: false,
   healthChecks: true,
   effects: true,
+  xImportEnabled: false,
 };
 export type View =
   | "all"
