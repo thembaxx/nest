@@ -41,7 +41,11 @@ test("X bookmark import is opt-in and guided without an X sign-in", async ({ pag
   });
   await expect(page.getByText(/Ready to import 1 bookmarks/)).toBeVisible();
   await page.getByRole("button", { name: "Confirm import" }).click();
+  await expect(page.getByRole("tab", { name: /X bookmarks/ })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByText("Useful design tips").first()).toBeVisible();
+  await page.getByRole("tab", { name: /Bookmarks/, exact: false }).first().click();
+  await expect(page.getByText("Useful design tips")).toHaveCount(0);
+  await page.getByRole("tab", { name: /X bookmarks/ }).click();
 
   await page.getByRole("button", { name: "Open your preferences" }).click();
   await page.getByRole("button", { name: "Sync & data", exact: true }).click();
@@ -55,10 +59,19 @@ test("X bookmark import is opt-in and guided without an X sign-in", async ({ pag
     "false",
   );
   await page.getByRole("button", { name: "Close dialog" }).click();
+  await expect(page.getByRole("tab", { name: /X bookmarks/ })).toHaveCount(0);
+  await expect(page.getByText("Useful design tips")).toHaveCount(0);
   await page.getByRole("button", { name: "Import", exact: true }).click();
   await expect(page.getByRole("button", { name: "Open X import guide" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Confirm import" })).toHaveCount(0);
   await page.getByRole("button", { name: "Close dialog" }).click();
+
+  await page.getByRole("button", { name: "Open your preferences" }).click();
+  await page.getByRole("button", { name: "Sync & data", exact: true }).click();
+  await page.getByRole("switch", { name: "Import from X (Twitter)" }).click();
+  await expect(page.getByRole("heading", { name: "Bring your X bookmarks home." })).toBeVisible();
+  await page.getByRole("button", { name: "Close dialog" }).click();
+  await page.getByRole("tab", { name: /X bookmarks/ }).click();
   await expect(page.getByText("Useful design tips").first()).toBeVisible();
 });
 
