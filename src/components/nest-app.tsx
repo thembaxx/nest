@@ -93,7 +93,10 @@ export function NestApp() {
       const shared = [params.get("url"), params.get("text"), params.get("title")]
         .filter(Boolean)
         .join("\n");
-      if (shared) {
+      if (params.get("raindrop") === "connected") {
+        setDialog("import");
+        history.replaceState(null, "", location.pathname);
+      } else if (shared) {
         setInitialLink(shared);
         setDialog("add");
         history.replaceState(null, "", location.pathname);
