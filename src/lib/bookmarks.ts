@@ -6,6 +6,7 @@ export function canonicalUrl(value: string): string {
   const u = new URL(value);
   u.hash = u.hash === "#" ? "" : u.hash;
   u.hostname = u.hostname.replace(/^www\./, "").toLowerCase();
+  if (/^(?:mobile\.)?twitter\.com$/.test(u.hostname)) u.hostname = "x.com";
   u.protocol = "https:";
   for (const key of [...u.searchParams.keys()])
     if (/^(utm_|fbclid$|gclid$|mc_cid$|mc_eid$)/i.test(key)) u.searchParams.delete(key);
