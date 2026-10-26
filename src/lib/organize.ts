@@ -80,6 +80,9 @@ export function ingestBookmarks(
       const old = records.get(existingId)!;
       const moving =
         !!options.moveExisting && originalIds.has(existingId) && destinations.length > 0;
+      // Explicit X imports put an already-saved post in the X view without
+      // overwriting its title, notes, tags, or other personal changes.
+      const markAsX = source.source === "x" && old.source !== "x";
       const requested = new Set([
         ...(moving ? movedDestinations.get(existingId) || [] : old.listIds),
         ...destinations,
@@ -88,13 +91,14 @@ export function ingestBookmarks(
       const listIds = [...requested];
       const changed =
         listIds.length !== old.listIds.length || listIds.some((id) => !old.listIds.includes(id));
-      if (changed || (moving && (old.archived || old.demo))) {
+      if (changed || markAsX || (moving && (old.archived || old.demo))) {
         if (listIds.length > 50) throw Error("A bookmark can belong to up to 50 folders.");
         records.set(existingId, {
           ...old,
           listIds,
           ...(moving ? { archived: false, demo: false } : {}),
-          updatedAt: now,
+          ...(markAsX ? { source: "x" as const } : {}),
+          updatedAt: Math.max(now, old.updatedAt + 1),
         });
         filedIds.add(existingId);
         if (moving) movedIds.add(existingId);

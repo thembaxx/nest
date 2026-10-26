@@ -20,10 +20,14 @@ import type { Settings } from "@/lib/types";
 export function SettingsDialog({
   onClose,
   onInstall,
+  onOpenXImport,
+  onDisableXImport,
   initialTab = "general",
 }: {
   onClose: () => void;
   onInstall: () => void;
+  onOpenXImport: () => void;
+  onDisableXImport: () => void;
   initialTab?: string;
 }) {
   const { library, settings, setSettings, setLibrary, toast } = useLibrary();
@@ -215,6 +219,31 @@ export function SettingsDialog({
         </>
       ) : (
         <>
+          <div className="settings-heading">
+            <h3>Optional imports</h3>
+            <p>Only switch on the sources you want to bring into your Nest library.</p>
+          </div>
+          <Toggle
+            title="Import from X (Twitter)"
+            description="Keep imported X posts in their own tab. Opens a free manual CSV import guide; no X login or automatic syncing."
+            value={!!settings.xImportEnabled}
+            onChange={(enabled) => {
+              setSettings({ xImportEnabled: enabled });
+              if (enabled) onOpenXImport();
+              else onDisableXImport();
+            }}
+          />
+          {settings.xImportEnabled && (
+            <div className="setting-row">
+              <div>
+                <h4>X import guide</h4>
+                <p>Reopen the CSV guide. Turning off this setting hides the X tab without deleting imported posts.</p>
+              </div>
+              <button className="button secondary" onClick={onOpenXImport}>
+                Open guide
+              </button>
+            </div>
+          )}
           <SyncDataSettings />
           {library.bookmarks.some((b) => b.demo) && (
             <div className="setting-row">

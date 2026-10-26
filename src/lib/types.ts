@@ -31,6 +31,8 @@ export const bookmarkSchema = z.object({
   image: z.string().max(4000).optional(),
   art: z.string().max(40).optional(),
   demo: z.boolean().optional(),
+  /** Provenance of bookmarks imported through a dedicated service importer. */
+  source: z.enum(["x"]).optional(),
   note: z.string().max(5000).optional(),
 });
 export type Bookmark = z.infer<typeof bookmarkSchema>;
@@ -59,6 +61,7 @@ export type Settings = {
   model?: string;
   healthChecks: boolean;
   effects: boolean;
+  xImportEnabled?: boolean;
 };
 export const defaultSettings: Settings = {
   theme: "system",
@@ -66,9 +69,11 @@ export const defaultSettings: Settings = {
   onboarded: false,
   healthChecks: true,
   effects: true,
+  xImportEnabled: false,
 };
 export type View =
   | "all"
+  | "x"
   | "favorites"
   | "unread"
   | "archive"

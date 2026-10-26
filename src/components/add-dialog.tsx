@@ -18,17 +18,24 @@ import { cleanFolderName, folderKey, parsePaste } from "@/lib/paste";
 import { bookmarkSchema, listSchema, type Bookmark } from "@/lib/types";
 import { celebrate } from "@/lib/celebrate";
 import { parseCsvImport } from "@/lib/csv-import";
+import { asXImport } from "@/lib/x-import";
 import { parseServiceImport, parseRaindropItems } from "@/lib/service-import";
 import type { Library } from "@/lib/types";
 export function AddDialog({
   onClose,
   initial = "",
   importMode = false,
+  xImportMode = false,
+  onOpenXGuide,
+  onImportedX,
   initialCollection = "",
 }: {
   onClose: () => void;
   initial?: string;
   importMode?: boolean;
+  xImportMode?: boolean;
+  onOpenXGuide?: () => void;
+  onImportedX?: () => void;
   initialCollection?: string;
 }) {
   const { add, library, settings, toast, setSettings } = useLibrary();
@@ -146,16 +153,21 @@ export function AddDialog({
     setImportPreview(null);
     try {
       if (file.size > 20 * 1024 * 1024) throw Error("Please use a file smaller than 20 MB.");
+      if (xImportMode && !file.name.toLowerCase().endsWith(".csv"))
+        throw Error("X imports require a CSV export.");
       const content = await file.text();
       const parsed = file.name.toLowerCase().endsWith(".csv")
         ? parseCsvImport(content)
         : file.name.toLowerCase().endsWith(".json")
           ? parseServiceImport(JSON.parse(content)) ?? parseImport(content, file.name, { autoOrganize: settings.autoSort })
           : parseImport(content, file.name, { autoOrganize: settings.autoSort });
-      const bookmarks = parsed.bookmarks.map((bookmark) => bookmarkSchema.parse(bookmark));
-      const lists = parsed.lists.map((list) => listSchema.parse(list));
+      const prepared = xImportMode ? asXImport(parsed) : parsed;
+      const bookmarks = prepared.bookmarks.map((bookmark) => bookmarkSchema.parse(bookmark));
+      const lists = prepared.lists.map((list) => listSchema.parse(list));
       if (!bookmarks.length)
-        throw Error("No valid bookmarks found. Choose a browser HTML, JSON or CSV export.");
+        throw Error(xImportMode
+          ? "No X post links found. Export your saved X bookmarks as a CSV with a URL or Tweet_URL column."
+          : "No valid bookmarks found. Choose a browser HTML, JSON or CSV export.");
       setImportPreview({ bookmarks, lists });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to read this file.");
@@ -189,6 +201,7 @@ export function AddDialog({
     setBusy(true);
     try {
       announce(add(importPreview.bookmarks, importPreview.lists), true);
+      if (xImportMode) onImportedX?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to import bookmarks.");
     } finally {
@@ -197,7 +210,7 @@ export function AddDialog({
   }
   return (
     <Modal
-      title={tab === "paste" ? "Something worth keeping." : "Bring your bookmarks home."}
+      title={xImportMode ? "Import from X." : tab === "paste" ? "Something worth keeping." : "Bring your bookmarks home."}
       subtitle={
         initialCollection && tab === "paste"
           ? "Paste new links or move bookmarks you’ve already saved. Choose a destination below."
@@ -207,7 +220,7 @@ export function AddDialog({
         if (!busy) onClose();
       }}
     >
-      <div className="segmented">
+      {!xImportMode && <div className="segmented">
         <button
           disabled={busy}
           className={tab === "paste" ? "active" : ""}
@@ -222,7 +235,7 @@ export function AddDialog({
         >
           <Upload size={16} /> Import bookmarks
         </button>
-      </div>
+      </div>}
       {tab === "paste" ? (
         <>
           <label className="field-label" htmlFor="links">
@@ -358,14 +371,34 @@ export function AddDialog({
         </>
       ) : (
         <>
-          <div className="note-box">
+          {settings.xImportEnabled && onOpenXGuide && !xImportMode && (
+            <div className="note-box">
+              <strong>Import bookmarks from X (Twitter)</strong>
+              <p>Follow the three-step guide to export a CSV, then preview it here.</p>
+              <button className="button secondary" disabled={busy} onClick={onOpenXGuide}>
+                Open X import guide
+              </button>
+            </div>
+          )}
+          {xImportMode && (
+            <div className="note-box">
+              <strong>Your X bookmarks, coming home.</strong>
+              <p>Choose your exported CSV below. Review the count and duplicates before confirming. Nothing is removed from X.</p>
+              {onOpenXGuide && (
+                <button className="text-button" disabled={busy} onClick={onOpenXGuide}>
+                  Back to X import guide
+                </button>
+              )}
+            </div>
+          )}
+          {!xImportMode && <div className="note-box">
             <strong>Import directly from Raindrop.io</strong>
             <p>Connect your account, then preview your bookmarks before importing. Access is temporary and is not used for ongoing sync.</p>
             <a className="button secondary" href="/api/import/raindrop/start">Connect Raindrop</a>
             <button className="button secondary" disabled={busy} onClick={() => void importRaindrop()}>
               Load connected bookmarks
             </button>
-          </div>
+          </div>}
           <label
             htmlFor="import-file"
             className="import-drop"
@@ -380,14 +413,14 @@ export function AddDialog({
             <strong>
               {busy ? "Making room for your collection…" : "Drop your bookmark file here"}
             </strong>
-            <span>HTML, JSON or CSV exports from browsers and bookmark apps</span>
+            <span>{xImportMode ? "X bookmarks CSV export" : "HTML, JSON or CSV exports from browsers and bookmark apps"}</span>
             <span className="button secondary">
               Choose a file <ArrowUpRight size={15} />
             </span>
             <input
               id="import-file"
               type="file"
-              accept=".html,.htm,.json,.csv,text/csv"
+              accept={xImportMode ? ".csv,text/csv" : ".html,.htm,.json,.csv,text/csv"}
               disabled={busy}
               onChange={(event) => {
                 if (event.target.files?.[0]) void importFile(event.target.files[0]);

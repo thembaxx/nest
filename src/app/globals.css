@@ -161,3 +161,32 @@ html { scroll-padding-top: calc(var(--edge-top-size) + 12px); scroll-padding-bot
 .sync-data-settings .sync-recovery .recovery-key{margin-top:10px}
 .sync-data-settings .note-box .inline-input{margin-top:10px}
 .sync-data-settings .note-box .field-label{display:block;margin-top:14px}
+
+
+/* Optional X import — scoped to the guided flow, with the existing Nest palette. */
+.x-import-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;list-style:none;margin:6px 0 24px;padding:0}
+.x-import-steps li{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;padding:11px 6px;background:var(--input);border:1px solid var(--line);border-radius:12px;color:var(--muted);font-size:12px}
+.x-import-steps li strong{font-weight:600}
+.x-import-steps li>span{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;border:1px solid currentColor;flex-shrink:0;font-size:11px}
+.x-import-steps li.active{background:var(--green-soft);color:var(--green);border-color:var(--green)}
+.x-import-steps li.complete{color:var(--green)}
+.x-import-content{display:grid;gap:15px;min-height:270px;align-content:start}
+.x-import-content h3{font-family:'Instrument Serif',serif;font-size:28px;font-weight:400;line-height:1.15}
+.x-import-content>p{color:var(--muted);line-height:1.65}
+.x-import-content .note-box{margin:0}
+.x-import-content .note-box p{line-height:1.6}
+.x-import-content .note-box .button{margin-top:12px}
+.x-import-actions{display:flex;gap:10px;flex-wrap:wrap}
+.x-import-instructions{margin:0;padding-left:21px;display:grid;gap:12px;line-height:1.55}
+.x-import-instructions li{padding-left:3px}
+.x-import-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:22px}
+@media(max-width:600px){.x-import-steps{gap:5px}.x-import-steps li{font-size:11px;gap:4px;padding:9px 3px}.x-import-steps li>span{width:19px;height:19px}.x-import-content{min-height:0}.x-import-footer .button{min-height:43px}}
+
+
+/* Switch between regular bookmarks and the opt-in X collection without altering bottom navigation. */
+.bookmark-source-tabs{display:flex;align-items:stretch;width:max-content;max-width:100%;gap:4px;padding:5px;margin:0 0 23px;border:1px solid var(--line);border-radius:15px;background:var(--input)}
+.bookmark-source-tabs button{display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;min-height:40px;padding:10px 15px;color:var(--muted);border:1px solid transparent;border-radius:11px;font-size:12px;font-weight:600;transition:background-color .2s,color .2s,border-color .2s}
+.bookmark-source-tabs button.active{background:var(--surface);border-color:var(--line);box-shadow:var(--shadow);color:var(--green)}
+.bookmark-source-tabs button span{font-variant-numeric:tabular-nums;font-size:11px;opacity:.7}
+@media(max-width:600px){.bookmark-source-tabs{width:100%;margin-bottom:17px}.bookmark-source-tabs button{flex:1;min-width:0;padding:9px 7px;gap:5px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){.bookmark-source-tabs button{transition:none}}
