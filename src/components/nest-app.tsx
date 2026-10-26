@@ -31,6 +31,7 @@ import {
   SlidersHorizontal,
   DotsThree,
   Bookmarks,
+  XLogo,
 } from "@phosphor-icons/react";
 import { useLibrary } from "./library-provider";
 import { Modal, Empty } from "./ui";
@@ -131,6 +132,8 @@ export function NestApp() {
     };
   }, []);
   const active = useMemo(() => library.bookmarks.filter((b) => !b.deletedAt), [library.bookmarks]);
+  const ordinary = useMemo(() => active.filter((b) => b.source !== "x"), [active]);
+  const xBookmarks = useMemo(() => active.filter((b) => b.source === "x"), [active]);
   const collections = library.lists.filter((l) => !l.deletedAt);
   const filtered = useMemo(() => {
     let result = active
@@ -138,6 +141,8 @@ export function NestApp() {
         if (view === "archive") return b.archived;
         if (view === "dead") return b.status === "dead";
         if (b.archived) return false;
+        if (view === "x") return b.source === "x";
+        if ((view === "all" || view === "favorites" || view === "unread") && b.source === "x") return false;
         if (view === "favorites") return b.favorite;
         if (view === "unread") return !b.read;
         if (view.startsWith("list:")) return b.listIds.includes(view.slice(5));
@@ -157,7 +162,9 @@ export function NestApp() {
     ? collections.find((list) => list.id === view.slice(5))
     : undefined;
   const viewTitle =
-    view === "favorites"
+    view === "x"
+      ? "Your saved posts from X"
+      : view === "favorites"
       ? "Your favorites"
       : view === "unread"
         ? "A little reading, for later"
@@ -265,21 +272,30 @@ export function NestApp() {
             icon={Bookmark}
             label="All bookmarks"
             active={view === "all"}
-            count={active.filter((b) => !b.archived).length}
+            count={ordinary.filter((b) => !b.archived).length}
             onClick={() => navigate("all")}
           />
+          {settings.xImportEnabled && (
+            <Nav
+              icon={XLogo}
+              label="X bookmarks"
+              active={view === "x"}
+              count={xBookmarks.filter((b) => !b.archived).length}
+              onClick={() => navigate("x")}
+            />
+          )}
           <Nav
             icon={Heart}
             label="Favorites"
             active={view === "favorites"}
-            count={active.filter((b) => b.favorite && !b.archived).length}
+            count={ordinary.filter((b) => b.favorite && !b.archived).length}
             onClick={() => navigate("favorites")}
           />
           <Nav
             icon={BookOpen}
             label="Read later"
             active={view === "unread"}
-            count={active.filter((b) => !b.read && !b.archived).length}
+            count={ordinary.filter((b) => !b.read && !b.archived).length}
             onClick={() => navigate("unread")}
           />
         </nav>
@@ -412,6 +428,8 @@ export function NestApp() {
               <p>
                 {view === "all"
                   ? "Save what sparks something. Find it when you need it."
+                  : view === "x"
+                    ? "A quiet home for the posts you saved on X, separate from your other links."
                   : view === "dead"
                     ? "Repeatedly missing pages land here. Temporary errors get another chance."
                     : view === "archive"
@@ -420,18 +438,40 @@ export function NestApp() {
               </p>
             </div>
             <div className="greeting-actions">
-              <button className="button import-button" onClick={() => setDialog("import")}>
-                <Upload size={16} /> Import
+              <button className="button import-button" onClick={() => setDialog(view === "x" ? "x-import" : "import")}>
+                <Upload size={16} /> {view === "x" ? "Import from X" : "Import"}
               </button>
-              <button className="button primary" onClick={() => setDialog("add")}>
-                <Plus size={18} /> {currentCollection ? "Add links" : "Add bookmark"}
-              </button>
+              {view !== "x" && (
+                <button className="button primary" onClick={() => setDialog("add")}>
+                  <Plus size={18} /> {currentCollection ? "Add links" : "Add bookmark"}
+                </button>
+              )}
             </div>
           </div>
+          {settings.xImportEnabled && (view === "all" || view === "x") && (
+            <div className="bookmark-source-tabs" role="tablist" aria-label="Bookmark source">
+              <button
+                role="tab"
+                aria-selected={view === "all"}
+                className={view === "all" ? "active" : ""}
+                onClick={() => navigate("all")}
+              >
+                <Bookmark size={16} /> Bookmarks <span>{ordinary.filter((b) => !b.archived).length}</span>
+              </button>
+              <button
+                role="tab"
+                aria-selected={view === "x"}
+                className={view === "x" ? "active" : ""}
+                onClick={() => navigate("x")}
+              >
+                <XLogo size={16} /> X bookmarks <span>{xBookmarks.filter((b) => !b.archived).length}</span>
+              </button>
+            </div>
+          )}
           {view === "all" && !query && (
             <CollectionsSection
               collections={collections}
-              bookmarks={active}
+              bookmarks={ordinary}
               onOpen={(id) => navigate(`list:${id}`)}
               onManage={setManagedCollection}
               onCreate={() => setDialog("collection")}
@@ -464,6 +504,8 @@ export function NestApp() {
                   ? "A few things you might like"
                   : view === "all"
                     ? "All bookmarks"
+                    : view === "x"
+                      ? "X bookmarks"
                     : view === "dead"
                       ? "Broken links"
                       : "Bookmarks"}{" "}
@@ -589,6 +631,8 @@ export function NestApp() {
                 title={
                   query
                     ? "A new thread to follow."
+                    : view === "x"
+                      ? "Your saved posts have a place here."
                     : view === "dead"
                       ? "Nothing broken. A lovely thing."
                       : "A little space for something good."
@@ -596,6 +640,8 @@ export function NestApp() {
                 description={
                   query
                     ? "Try a different word, topic, or a simpler description."
+                    : view === "x"
+                      ? "Import your X bookmarks using the guided CSV import. They’ll stay separate from your regular links."
                     : view === "dead"
                       ? "Synced links are checked on a schedule. Confirmed missing pages will appear here."
                       : "Add a bookmark, import your favorites, or explore another collection."
@@ -614,8 +660,9 @@ export function NestApp() {
                   </button>
                 ) : (
                   view !== "dead" && (
-                    <button className="button primary" onClick={() => setDialog("add")}>
-                      <Plus size={15} /> Save your first find
+                    <button className="button primary" onClick={() => setDialog(view === "x" ? "x-import" : "add")}>
+                      {view === "x" ? <Upload size={15} /> : <Plus size={15} />}
+                      {view === "x" ? "Import from X" : "Save your first find"}
                     </button>
                   )
                 )}
@@ -674,6 +721,7 @@ export function NestApp() {
           importMode={dialog === "import" || dialog === "x-upload"}
           xImportMode={dialog === "x-upload"}
           onOpenXGuide={() => setDialog("x-import")}
+          onImportedX={() => navigate("x")}
           initialCollection={dialog === "add" ? currentCollection?.name : undefined}
         />
       )}{" "}
@@ -707,6 +755,9 @@ export function NestApp() {
           onClose={close}
           onInstall={() => void install()}
           onOpenXImport={() => setDialog("x-import")}
+          onDisableXImport={() => {
+            if (view === "x") navigate("all");
+          }}
         />
       )}{" "}
       {dialog === "welcome" && (
