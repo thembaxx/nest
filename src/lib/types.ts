@@ -31,6 +31,8 @@ export const bookmarkSchema = z.object({
   image: z.string().max(4000).optional(),
   art: z.string().max(40).optional(),
   demo: z.boolean().optional(),
+  /** Provenance of bookmarks imported through a dedicated service importer. */
+  source: z.enum(["x"]).optional(),
   note: z.string().max(5000).optional(),
 });
 export type Bookmark = z.infer<typeof bookmarkSchema>;
@@ -71,6 +73,7 @@ export const defaultSettings: Settings = {
 };
 export type View =
   | "all"
+  | "x"
   | "favorites"
   | "unread"
   | "archive"
