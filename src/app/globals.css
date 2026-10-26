@@ -153,3 +153,11 @@ html { scroll-padding-top: calc(var(--edge-top-size) + 12px); scroll-padding-bot
 .sync-data-settings .sync-panel output{display:block;font-size:10px;line-height:1.8;color:var(--muted);margin-top:5px}
 
 .sync-data-settings .restore-preferences{display:flex;align-items:center;gap:8px;font-size:12px;margin-top:12px}.sync-data-settings .restore-preferences input{width:auto;flex-shrink:0}
+
+/* Google Drive setup: readable pairing keys and iOS-safe input sizing. */
+.sync-data-settings #drive-recovery{font-size:16px;letter-spacing:.02em}
+.sync-data-settings .sync-recovery{margin-top:12px}
+.sync-data-settings .sync-recovery .flex-gap{align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.sync-data-settings .sync-recovery .recovery-key{margin-top:10px}
+.sync-data-settings .note-box .inline-input{margin-top:10px}
+.sync-data-settings .note-box .field-label{display:block;margin-top:14px}
