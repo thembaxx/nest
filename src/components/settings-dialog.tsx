@@ -20,10 +20,12 @@ import type { Settings } from "@/lib/types";
 export function SettingsDialog({
   onClose,
   onInstall,
+  onOpenXImport,
   initialTab = "general",
 }: {
   onClose: () => void;
   onInstall: () => void;
+  onOpenXImport: () => void;
   initialTab?: string;
 }) {
   const { library, settings, setSettings, setLibrary, toast } = useLibrary();
@@ -215,6 +217,30 @@ export function SettingsDialog({
         </>
       ) : (
         <>
+          <div className="settings-heading">
+            <h3>Optional imports</h3>
+            <p>Only switch on the sources you want to bring into your Nest library.</p>
+          </div>
+          <Toggle
+            title="Import from X (Twitter)"
+            description="Show the manual X bookmark import guide. No X sign-in, API access, or automatic syncing."
+            value={!!settings.xImportEnabled}
+            onChange={(enabled) => {
+              setSettings({ xImportEnabled: enabled });
+              if (enabled) onOpenXImport();
+            }}
+          />
+          {settings.xImportEnabled && (
+            <div className="setting-row">
+              <div>
+                <h4>X import guide</h4>
+                <p>Reopen the export and CSV import instructions whenever you need them.</p>
+              </div>
+              <button className="button secondary" onClick={onOpenXImport}>
+                Open guide
+              </button>
+            </div>
+          )}
           <SyncDataSettings />
           {library.bookmarks.some((b) => b.demo) && (
             <div className="setting-row">
