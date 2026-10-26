@@ -18,6 +18,7 @@ import { cleanFolderName, folderKey, parsePaste } from "@/lib/paste";
 import { bookmarkSchema, listSchema, type Bookmark } from "@/lib/types";
 import { celebrate } from "@/lib/celebrate";
 import { parseCsvImport } from "@/lib/csv-import";
+import { parseServiceImport } from "@/lib/service-import";
 import type { Library } from "@/lib/types";
 export function AddDialog({
   onClose,
@@ -148,7 +149,9 @@ export function AddDialog({
       const content = await file.text();
       const parsed = file.name.toLowerCase().endsWith(".csv")
         ? parseCsvImport(content)
-        : parseImport(content, file.name, { autoOrganize: settings.autoSort });
+        : file.name.toLowerCase().endsWith(".json")
+          ? parseServiceImport(JSON.parse(content)) ?? parseImport(content, file.name, { autoOrganize: settings.autoSort })
+          : parseImport(content, file.name, { autoOrganize: settings.autoSort });
       const bookmarks = parsed.bookmarks.map((bookmark) => bookmarkSchema.parse(bookmark));
       const lists = parsed.lists.map((list) => listSchema.parse(list));
       if (!bookmarks.length)
