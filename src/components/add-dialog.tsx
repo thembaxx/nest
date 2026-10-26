@@ -24,11 +24,15 @@ export function AddDialog({
   onClose,
   initial = "",
   importMode = false,
+  xImportMode = false,
+  onOpenXGuide,
   initialCollection = "",
 }: {
   onClose: () => void;
   initial?: string;
   importMode?: boolean;
+  xImportMode?: boolean;
+  onOpenXGuide?: () => void;
   initialCollection?: string;
 }) {
   const { add, library, settings, toast, setSettings } = useLibrary();
@@ -358,14 +362,34 @@ export function AddDialog({
         </>
       ) : (
         <>
-          <div className="note-box">
+          {settings.xImportEnabled && onOpenXGuide && !xImportMode && (
+            <div className="note-box">
+              <strong>Import bookmarks from X (Twitter)</strong>
+              <p>Follow the three-step guide to export a CSV, then preview it here.</p>
+              <button className="button secondary" disabled={busy} onClick={onOpenXGuide}>
+                Open X import guide
+              </button>
+            </div>
+          )}
+          {xImportMode && (
+            <div className="note-box">
+              <strong>Your X bookmarks, coming home.</strong>
+              <p>Choose your exported CSV below. Review the count and duplicates before confirming. Nothing is removed from X.</p>
+              {onOpenXGuide && (
+                <button className="text-button" disabled={busy} onClick={onOpenXGuide}>
+                  Back to X import guide
+                </button>
+              )}
+            </div>
+          )}
+          {!xImportMode && <div className="note-box">
             <strong>Import directly from Raindrop.io</strong>
             <p>Connect your account, then preview your bookmarks before importing. Access is temporary and is not used for ongoing sync.</p>
             <a className="button secondary" href="/api/import/raindrop/start">Connect Raindrop</a>
             <button className="button secondary" disabled={busy} onClick={() => void importRaindrop()}>
               Load connected bookmarks
             </button>
-          </div>
+          </div>}
           <label
             htmlFor="import-file"
             className="import-drop"
@@ -380,14 +404,14 @@ export function AddDialog({
             <strong>
               {busy ? "Making room for your collection…" : "Drop your bookmark file here"}
             </strong>
-            <span>HTML, JSON or CSV exports from browsers and bookmark apps</span>
+            <span>{xImportMode ? "X bookmarks CSV export" : "HTML, JSON or CSV exports from browsers and bookmark apps"}</span>
             <span className="button secondary">
               Choose a file <ArrowUpRight size={15} />
             </span>
             <input
               id="import-file"
               type="file"
-              accept=".html,.htm,.json,.csv,text/csv"
+              accept={xImportMode ? ".csv,text/csv" : ".html,.htm,.json,.csv,text/csv"}
               disabled={busy}
               onChange={(event) => {
                 if (event.target.files?.[0]) void importFile(event.target.files[0]);
