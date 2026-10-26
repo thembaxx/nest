@@ -50,7 +50,7 @@ Next.js App Router, TypeScript, Tailwind CSS 4, Motion, IndexedDB, Three.js, Pix
 ## Included
 
 - Bulk link extraction with metadata fetching, topic suggestions, tracking-insensitive duplicate detection, search, topic filters, sorting, grid/list views, favorites, read-later, archive, trash restoration, tags, and personal notes.
-- Custom collections and imports from Netscape HTML (Chrome, Safari, Edge, Brave, Firefox), browser JSON, or a Nest JSON backup. HTML exports open in other browsers; JSON keeps Nest metadata.
+- Custom collections and imports from Netscape HTML (Chrome, Safari, Edge, Brave, Firefox), CSV, browser JSON, or a Nest JSON backup. Optional X (Twitter) bookmark guidance is disabled by default in Settings → Sync & data. Enabling it opens a three-step manual CSV import wizard; no X API keys or subscriptions are needed, and turning it off does not remove already-imported bookmarks. HTML exports open in other browsers; JSON keeps Nest metadata.
 - Local storage in IndexedDB with a localStorage fallback; a sample library explicitly marked in the UI. Untouched samples never sync and are omitted from export; editing a sample keeps it as a personal bookmark.
 - Optional Google Drive sync stores AES-256-GCM encrypted per-device snapshots in the hidden appDataFolder, using only the `drive.appdata` scope. A random 256-bit recovery key stays on the device. The Google account and the same key are required on another device. Google access tokens stay in memory and require reconnecting after a reload or expiration. Concurrent device edits merge using record timestamps and deletion tombstones. No Nest database is required.
 - Portable, versioned backups include notes, tags, collections, trash and safe preferences, omit samples and credentials, and support password encryption using PBKDF2-SHA256 (600,000 iterations) and AES-256-GCM. Restore validates and previews files before merging with existing records; older JSON exports are supported. Maximum file size: 20 MB. HTML remains a flat active-link export.
@@ -61,6 +61,12 @@ Next.js App Router, TypeScript, Tailwind CSS 4, Motion, IndexedDB, Three.js, Pix
 - Installable PWA: icons, maskable icon, standalone mode, share target, add-bookmark shortcut, cached shell/assets, offline library, safe areas, light/dark/system theme, early theme initialization, browser chrome colors, and swipe gestures in list view.
 
 For the free sync options, device transfer, and compatibility with older Google libraries and backups, see [the sync and recovery guide](docs/sync.md).
+
+## Optional X (Twitter) bookmark import
+
+X importing is **off by default** and does not run automatically. Open **Settings → Sync & data → Import from X (Twitter)** to enable it and see a three-step guide. On a desktop, open X's Bookmarks/Saved page, export posts to CSV using a tool whose permissions you have reviewed, then choose that CSV in Nest. The existing importer previews links, folder matches and duplicates before confirmation. Reopen the guide from Settings or the normal Import dialog whenever the option is enabled.
+
+Nest accepts CSV columns such as `URL`, `Tweet_URL`, `post_url`, `Tweet Text`, `author`, `handle`, `media_url`, tags and collections. No direct X API connection or background sync is configured. The file is read in your browser and becomes part of your regular Nest library, subject to whichever backup or sync method you already enabled. CSV imports do not modify bookmarks on X; disabling the feature hides its entry points but leaves imported records untouched. Exporter availability, completeness and limits depend on the tool and X's website. Do not upload your full X account archive or give Nest your X password, session cookies or tokens.
 
 ## Google Drive setup
 
