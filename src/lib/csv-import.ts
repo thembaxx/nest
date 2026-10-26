@@ -26,20 +26,34 @@ function rows(text: string): string[][] {
 export function parseCsvImport(text: string): Library {
   const lines = rows(text.replace(/^\uFEFF/, ""));
   if (!lines.length) throw Error("This CSV file is empty.");
-  const headers = lines[0].map(h => h.trim().toLowerCase());
+  const headers = lines[0].map((h) =>
+    h.trim().replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " "),
+  );
   const index = (...names: string[]) => headers.findIndex(h => names.includes(h));
-  const urlIndex = index("url", "link", "href", "website", "address");
+  const urlIndex = index("url", "link", "href", "website", "address", "tweet url", "post url", "status url", "tweet link", "post link", "permalink");
   if (urlIndex < 0) throw Error("CSV needs a URL or Link column.");
   const titleIndex = index("title", "name");
   const descriptionIndex = index("description", "excerpt", "summary");
   const tagsIndex = index("tags", "tag");
   const folderIndex = index("folder", "collection", "category");
+  const postTextIndex = index("tweet text", "post text", "full text", "tweet content", "post content", "text");
+  const authorIndex = index("author", "author name", "display name");
+  const handleIndex = index("handle", "author handle", "screen name", "username");
+  const imageIndex = index("image url", "media url", "thumbnail url");
   const lists: BookmarkList[] = [];
   const folders = new Map<string, string>();
   const bookmarks: Library["bookmarks"] = [];
   for (const line of lines.slice(1)) {
     const url = validUrl((line[urlIndex] || "").trim());
     if (!url) continue;
+    const host = new URL(url).hostname.toLowerCase();
+    const isXPost = /^(?:[a-z0-9-]+\.)*(?:x\.com|twitter\.com)$/.test(host) && /\/status\/\d+/.test(new URL(url).pathname);
+    const postText = isXPost && postTextIndex >= 0 ? (line[postTextIndex] || "").trim() : "";
+    const author = isXPost && authorIndex >= 0 ? (line[authorIndex] || "").trim() : "";
+    const handle = isXPost && handleIndex >= 0 ? (line[handleIndex] || "").trim() : "";
+    const authorNote = [author, handle && (handle.startsWith("@") ? handle : `@${handle}`)].filter(Boolean).join(" · ");
+    const note = [authorNote ? `Posted by ${authorNote}` : "", postText.length > 2000 ? postText : ""].filter(Boolean).join("\n\n").slice(0, 5000);
+    const image = isXPost && imageIndex >= 0 ? validUrl((line[imageIndex] || "").trim()) : null;
     const folder = folderIndex >= 0 ? (line[folderIndex] || "").trim().slice(0, 80) : "";
     let id = folder ? folders.get(folder.toLowerCase()) : undefined;
     if (folder && !id) {
@@ -47,8 +61,12 @@ export function parseCsvImport(text: string): Library {
       lists.push({ id, name: folder, color: "lilac", updatedAt: Date.now() });
     }
     bookmarks.push(makeBookmark(url, {
-      ...(titleIndex >= 0 && line[titleIndex]?.trim() ? { title: line[titleIndex].trim().slice(0, 500) } : {}),
-      description: descriptionIndex >= 0 ? line[descriptionIndex]?.trim() || "" : "",
+      ...(titleIndex >= 0 && line[titleIndex]?.trim()
+        ? { title: line[titleIndex].trim().slice(0, 500) }
+        : postText ? { title: postText.split(/\r?\n/)[0].slice(0, 160) } : {}),
+      description: (descriptionIndex >= 0 ? line[descriptionIndex]?.trim() || "" : postText).slice(0, 2000),
+      ...(note ? { note } : {}),
+      ...(image ? { image } : {}),
       tags: tagsIndex >= 0 ? (line[tagsIndex] || "").split(/[;|]/).map(t => t.trim()).filter(Boolean) : [],
       listIds: id ? [id] : [],
     }));
