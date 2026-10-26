@@ -47,7 +47,7 @@ export function parseCsvImport(text: string): Library {
       lists.push({ id, name: folder, color: "lilac", updatedAt: Date.now() });
     }
     bookmarks.push(makeBookmark(url, {
-      title: titleIndex >= 0 ? line[titleIndex]?.trim() || undefined : undefined,
+      ...(titleIndex >= 0 && line[titleIndex]?.trim() ? { title: line[titleIndex].trim().slice(0, 500) } : {}),
       description: descriptionIndex >= 0 ? line[descriptionIndex]?.trim() || "" : "",
       tags: tagsIndex >= 0 ? (line[tagsIndex] || "").split(/[;|]/).map(t => t.trim()).filter(Boolean) : [],
       listIds: id ? [id] : [],
