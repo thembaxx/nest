@@ -16,7 +16,7 @@ import {
   type Settings,
 } from "@/lib/types";
 import { seed } from "@/lib/seed";
-import { mergeLibrary } from "@/lib/bookmarks";
+import { mergeWithHistory as mergeLibrary } from "@/lib/revision-storage";
 import { ingestBookmarks, type IngestOptions } from "@/lib/organize";
 import { prepareSyncLibrary } from "@/lib/sync";
 import { readLibrary, writeLibrary } from "@/lib/storage";
@@ -109,6 +109,14 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("offline", on);
     };
   }, []);
+  useEffect(() => {
+    const failed = () =>
+      toast(
+        "Sync completed, but this device could not save conflict recovery history. Export a backup.",
+      );
+    window.addEventListener("nest-revisions-failed", failed);
+    return () => window.removeEventListener("nest-revisions-failed", failed);
+  }, [toast]);
   const setSettings = useCallback((change: Partial<Settings>) => {
     const next = { ...settingsRef.current, ...change };
     // Only one transport can send this library. Switching to legacy sync is explicit.

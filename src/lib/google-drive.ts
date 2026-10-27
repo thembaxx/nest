@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { mergeLibrary } from "./bookmarks";
+import { mergeWithHistory as mergeLibrary } from "./revision-storage";
 import { personalLibrary, parseBackup } from "./backup";
 import { decryptData, encryptData, importRecoveryKey, MAX_BACKUP_BYTES } from "./encryption";
 import { librarySchema, type Library, type Settings } from "./types";
