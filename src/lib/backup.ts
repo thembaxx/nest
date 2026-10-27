@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { librarySchema, type Library, type Settings } from "./types";
 import { prepareSyncLibrary } from "./sync";
-import { mergeLibrary } from "./bookmarks";
+import { mergeWithHistory as mergeLibrary } from "./revision-storage";
 import { decryptData, encryptData, MAX_BACKUP_BYTES, passwordKey } from "./encryption";
 
 const preferencesSchema = z

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { ArrowsClockwise, Cloud, Copy, Download, Shield } from "@phosphor-icons/react";
+import { RevisionHistory } from "./revision-history";
 import { useLibrary } from "./library-provider";
 import {
   createBackup,
@@ -143,8 +144,8 @@ export function SyncDataSettings() {
         <div className="note-box" aria-label="Start Google Drive sync">
           <strong>New to sync? Start here.</strong>
           <p>
-            1. Connect your Google account below. 2. Save the recovery key that appears. 3. Use
-            that same account and key on your other devices.
+            1. Connect your Google account below. 2. Save the recovery key that appears. 3. Use that
+            same account and key on your other devices.
           </p>
         </div>
       )}
@@ -214,15 +215,15 @@ export function SyncDataSettings() {
           <div className="note-box" aria-label="Set up another device">
             <strong>Next: connect another device</strong>
             <p>
-              Copy your recovery key, then open Nest on your other device. Choose
-              “Already syncing on another device?”, paste the key and select the same Google
-              account. Keep the key in your password manager — Nest cannot recover it for you.
+              Copy your recovery key, then open Nest on your other device. Choose “Already syncing
+              on another device?”, paste the key and select the same Google account. Keep the key in
+              your password manager — Nest cannot recover it for you.
             </p>
             {keyDisplay(settings.driveKey)}
           </div>
           <p className="small muted">
-            Your encrypted library stays in Google Drive. After reopening Nest, tap
-            “Reconnect Google” to resume sync; changes made offline remain on this device until then.
+            Your encrypted library stays in Google Drive. After reopening Nest, tap “Reconnect
+            Google” to resume sync; changes made offline remain on this device until then.
           </p>
           <button
             className="text-button"
@@ -254,39 +255,41 @@ export function SyncDataSettings() {
               Already syncing on another device?
             </label>
             <div className="inline-input">
-            <input
-              id="drive-recovery"
-              type="password"
-              autoComplete="off"
-              spellCheck={false}
-              value={driveKey}
-              onChange={(event) => setDriveKey(event.target.value)}
-              autoCapitalize="off"
-              autoCorrect="off"
-              placeholder="Paste your 64-character recovery key"
-            />
-            <button
-              className="button secondary"
-              disabled={
-                !googleDriveConfigured || !validRecoveryKey(normalizeRecoveryKey(driveKey)) || !!busy
-              }
-              onPointerEnter={prepareGoogleSignIn}
-              onFocus={prepareGoogleSignIn}
-              onClick={() =>
-                void run("google", async () => {
-                  await connectGoogle(normalizeRecoveryKey(driveKey));
-                  setDriveKey("");
-                  toast("Your encrypted Google Drive library is connected.");
-                })
-              }
-            >
-              Connect Google Drive
-            </button>
+              <input
+                id="drive-recovery"
+                type="password"
+                autoComplete="off"
+                spellCheck={false}
+                value={driveKey}
+                onChange={(event) => setDriveKey(event.target.value)}
+                autoCapitalize="off"
+                autoCorrect="off"
+                placeholder="Paste your 64-character recovery key"
+              />
+              <button
+                className="button secondary"
+                disabled={
+                  !googleDriveConfigured ||
+                  !validRecoveryKey(normalizeRecoveryKey(driveKey)) ||
+                  !!busy
+                }
+                onPointerEnter={prepareGoogleSignIn}
+                onFocus={prepareGoogleSignIn}
+                onClick={() =>
+                  void run("google", async () => {
+                    await connectGoogle(normalizeRecoveryKey(driveKey));
+                    setDriveKey("");
+                    toast("Your encrypted Google Drive library is connected.");
+                  })
+                }
+              >
+                Connect Google Drive
+              </button>
             </div>
             {driveKey && !validRecoveryKey(normalizeRecoveryKey(driveKey)) && (
-              <p className="small muted" role="status">
+              <output className="small muted">
                 Enter all 64 characters of the recovery key. Spaces and hyphens are okay.
-              </p>
+              </output>
             )}
           </div>
         </>
@@ -307,8 +310,8 @@ export function SyncDataSettings() {
           <h3>Backup &amp; export</h3>
           <p>
             Download a portable copy whenever you want. Encrypted backups include your bookmarks,
-            collections, notes, trash, and safe preferences — never your Google session or
-            recovery key.
+            collections, notes, trash, and safe preferences — never your Google session or recovery
+            key.
           </p>
         </div>
         <label className="field-label" htmlFor="backup-password">
@@ -472,6 +475,7 @@ export function SyncDataSettings() {
         )}
       </section>
 
+      <RevisionHistory />
       <details className="legacy-sync">
         <summary>Legacy Nest cloud sync{legacyConnected ? " · connected" : ""}</summary>
         <p className="small muted">
