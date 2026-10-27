@@ -535,6 +535,15 @@ export function NestApp() {
                     <List size={17} />
                   </button>
                   <button
+                    className={layout === "shelf" ? "active" : ""}
+                    onClick={() => setLayout("shelf")}
+                    aria-label="Shelf view"
+                    aria-pressed={layout === "shelf"}
+                    title="Display bookmarks on a decorative shelf"
+                  >
+                    <BookOpen size={17} />
+                  </button>
+                  <button
                     onClick={() => setDialog("connections")}
                     aria-label="Explore topic connections"
                   >
@@ -614,7 +623,7 @@ export function NestApp() {
               <span className="results-label">{filtered.length} little finds</span>
             </div>
             {filtered.length ? (
-              <div className={`bookmark-grid ${layout === "list" ? "list-view" : ""}`}>
+              <div className={`bookmark-grid ${layout === "list" ? "list-view" : layout === "shelf" ? "shelf-view" : ""}`}>
                 {filtered.map((b, i) => (
                   <BookmarkCard
                     key={b.id}
