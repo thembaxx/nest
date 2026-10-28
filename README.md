@@ -131,7 +131,6 @@ The collection shelf shows every active collection, with search and sorting by n
 
 Page palettes live in `src/lib/page-palette.ts`, shared by initial HTML, CSS, the PWA manifest, and the edge controller. Full-width fixed edge strips sit directly under `body`, outside transformed app content. Regions declare `data-edge-background="page"`, `"surface"`, `"sidebar"`, or an opaque CSS color; the controller paints the region, samples the regions adjacent to each visible viewport edge, and shares those colors with the strips, document backgrounds, and theme-color tags. Scroll restoration, visual viewport changes, theme changes, and resizing schedule a single animation-frame update. Route cleanup removes listeners and restores owned document styles and metadata. Browser tests cover Chromium and mobile WebKit geometry, scrolling, restoration, themes, and cleanup.
 
-
 ### Raindrop.io direct import
 
 Register an OAuth application at Raindrop.io and configure `RAINDROP_CLIENT_ID` and `RAINDROP_CLIENT_SECRET` in the deployment environment. Add `https://YOUR-NEST-DOMAIN/api/import/raindrop/callback` as its redirect URL. Open **Import → Connect Raindrop**, authorize access, then select **Load connected bookmarks** to preview and confirm. The import uses a short-lived, HTTP-only cookie and does not enable ongoing sync. JSON exports from Raindrop and Linkwarden, and CSV exports with a URL/Link column, can also be imported locally. Never expose the client secret as a `NEXT_PUBLIC_` variable.

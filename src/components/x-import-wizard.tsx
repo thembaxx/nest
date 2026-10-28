@@ -1,6 +1,13 @@
 "use client";
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Check, FileArrowUp, ShieldCheck } from "@phosphor-icons/react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ArrowUpRight,
+  Check,
+  FileArrowUp,
+  ShieldCheck,
+} from "@phosphor-icons/react";
 import { Modal } from "./ui";
 
 const steps = ["Export", "Prepare", "Import"];
@@ -37,8 +44,8 @@ export function XImportWizard({
         <section className="x-import-content" aria-labelledby="x-import-heading">
           <h3 id="x-import-heading">Get your bookmarks from X</h3>
           <p>
-            Open your saved posts in desktop Chrome. If X sends you to Saved, select the
-            Bookmarks tab. X does not provide a simple built-in bookmark CSV download.
+            Open your saved posts in desktop Chrome. If X sends you to Saved, select the Bookmarks
+            tab. X does not provide a simple built-in bookmark CSV download.
           </p>
           <div className="x-import-actions">
             <a
@@ -53,9 +60,9 @@ export function XImportWizard({
           <div className="note-box">
             <strong>Use a bookmark exporter</strong>
             <p>
-              For example, a third-party Chrome extension can collect loaded X bookmarks and
-              export a CSV. Review its permissions and privacy practices before installing it.
-              Nest is not affiliated with the extension or X.
+              For example, a third-party Chrome extension can collect loaded X bookmarks and export
+              a CSV. Review its permissions and privacy practices before installing it. Nest is not
+              affiliated with the extension or X.
             </p>
             <a
               className="button secondary"
@@ -67,8 +74,8 @@ export function XImportWizard({
             </a>
           </div>
           <p className="small muted">
-            On iPhone or iPad? Export on a desktop first, then send the CSV to your device.
-            Never paste your X password, cookies, or access tokens into Nest.
+            On iPhone or iPad? Export on a desktop first, then send the CSV to your device. Never
+            paste your X password, cookies, or access tokens into Nest.
           </p>
         </section>
       )}
@@ -86,15 +93,15 @@ export function XImportWizard({
             <div>
               <strong>CSV format · up to 20 MB</strong>
               <p>
-                Nest can preserve exported post text and author information when those columns
-                are available. Some exporters limit each batch; import additional files separately.
+                Nest can preserve exported post text and author information when those columns are
+                available. Some exporters limit each batch; import additional files separately.
                 Existing links are detected before saving.
               </p>
             </div>
           </div>
           <p className="small muted">
-            An official X account archive is not a guaranteed bookmark export. Avoid uploading
-            your full account archive: it may contain unrelated private information.
+            An official X account archive is not a guaranteed bookmark export. Avoid uploading your
+            full account archive: it may contain unrelated private information.
           </p>
         </section>
       )}
@@ -111,8 +118,8 @@ export function XImportWizard({
             <div>
               <strong>Your import is under your control</strong>
               <p>
-                The file is parsed in your browser. Bookmarks follow your existing local storage
-                and optional sync settings. Turning this feature off later does not delete them.
+                The file is parsed in your browser. Bookmarks follow your existing local storage and
+                optional sync settings. Turning this feature off later does not delete them.
               </p>
             </div>
           </div>

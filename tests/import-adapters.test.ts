@@ -9,7 +9,9 @@ import { defaultSettings } from "../src/lib/types";
 import { parseServiceImport, parseRaindropItems } from "../src/lib/service-import";
 
 test("CSV preserves quoted commas, collections and tags", () => {
-  const data = parseCsvImport('url,title,description,tags,folder\nhttps://example.com,"Hello, world","A, B",one;two,Research\n');
+  const data = parseCsvImport(
+    'url,title,description,tags,folder\nhttps://example.com,"Hello, world","A, B",one;two,Research\n',
+  );
   assert.equal(data.bookmarks.length, 1);
   assert.equal(data.bookmarks[0].title, "Hello, world");
   assert.deepEqual(data.bookmarks[0].tags, ["one", "two"]);
@@ -27,22 +29,26 @@ test("CSV rejects unsafe URLs", () => {
 });
 
 test("Linkwarden collections retain grouping", () => {
-  const data = parseServiceImport({ collections: [{ name: "Read", links: [{ url: "https://example.com", name: "Example" }] }] });
+  const data = parseServiceImport({
+    collections: [{ name: "Read", links: [{ url: "https://example.com", name: "Example" }] }],
+  });
   assert.equal(data?.bookmarks.length, 1);
   assert.equal(data?.lists[0].name, "Read");
 });
 
 test("Raindrop items retain title, tags and collection", () => {
-  const data = parseRaindropItems([{ link: "https://example.com", title: "Example", tags: ["reading"], collection: { $id: 7 } }], new Map([[7, "Articles"]]));
+  const data = parseRaindropItems(
+    [{ link: "https://example.com", title: "Example", tags: ["reading"], collection: { $id: 7 } }],
+    new Map([[7, "Articles"]]),
+  );
   assert.equal(data.bookmarks[0].title, "Example");
   assert.deepEqual(data.bookmarks[0].tags, ["reading"]);
   assert.equal(data.lists[0].name, "Articles");
 });
 
-
 test("X CSV exports preserve post text, author, image and imported folders", () => {
   const csv =
-    'Tweet_URL,Tweet Text,Author,Handle,Media_URL,Folder\n' +
+    "Tweet_URL,Tweet Text,Author,Handle,Media_URL,Folder\n" +
     'https://x.com/designer/status/123,"A thread about better interfaces, with examples",A Designer,designer,https://pbs.twimg.com/media/example.jpg,Inspiration\n';
   const imported = parseCsvImport(csv);
   assert.equal(imported.bookmarks.length, 1);
@@ -56,12 +62,15 @@ test("X CSV exports preserve post text, author, image and imported folders", () 
 
 test("X exporter without a title still imports post text", () => {
   const csv =
-    'author,handle,tweet text,URL,date\n' +
+    "author,handle,tweet text,URL,date\n" +
     'Someone,writer,"Saved an interesting post",https://twitter.com/writer/status/321,2026-10-25\n';
   const result = parseCsvImport(csv);
   assert.equal(result.bookmarks.length, 1);
   assert.equal(result.bookmarks[0].title, "Saved an interesting post");
-  assert.equal(canonicalUrl(result.bookmarks[0].url), canonicalUrl("https://x.com/writer/status/321"));
+  assert.equal(
+    canonicalUrl(result.bookmarks[0].url),
+    canonicalUrl("https://x.com/writer/status/321"),
+  );
 });
 
 test("X-specific metadata is not inferred for ordinary imported websites", () => {
@@ -70,13 +79,12 @@ test("X-specific metadata is not inferred for ordinary imported websites", () =>
   assert.equal(imported.bookmarks[0].note, undefined);
 });
 
-
 test("only explicitly imported X posts are routed to the X library", () => {
   const parsed = parseCsvImport(
     "url,title,folder\n" +
-    "https://twitter.com/author/status/123,A saved post,Threads\n" +
-    "https://example.com/interesting,Other site,Reading\n" +
-    "https://x.com/other/status/456,Another post,Threads\n",
+      "https://twitter.com/author/status/123,A saved post,Threads\n" +
+      "https://example.com/interesting,Other site,Reading\n" +
+      "https://x.com/other/status/456,Another post,Threads\n",
   );
   const incoming = asXImport(parsed);
   assert.equal(incoming.bookmarks.length, 2);
@@ -98,12 +106,9 @@ test("reimporting an existing X link preserves personal edits and classifies its
     title: "Exported title",
     source: "x",
   });
-  const result = ingestBookmarks(
-    { bookmarks: [personal], lists: [] },
-    [incoming],
-    [],
-    { autoOrganize: false },
-  );
+  const result = ingestBookmarks({ bookmarks: [personal], lists: [] }, [incoming], [], {
+    autoOrganize: false,
+  });
   assert.equal(result.duplicates, 1);
   assert.equal(result.added.length, 0);
   assert.equal(result.library.bookmarks.length, 1);

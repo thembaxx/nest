@@ -41,9 +41,15 @@ test("X bookmark import is opt-in and guided without an X sign-in", async ({ pag
   });
   await expect(page.getByText(/Ready to import 1 bookmarks/)).toBeVisible();
   await page.getByRole("button", { name: "Confirm import" }).click();
-  await expect(page.getByRole("tab", { name: /X bookmarks/ })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: /X bookmarks/ })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
   await expect(page.getByText("Useful design tips").first()).toBeVisible();
-  await page.getByRole("tab", { name: /Bookmarks/, exact: false }).first().click();
+  await page
+    .getByRole("tab", { name: /Bookmarks/, exact: false })
+    .first()
+    .click();
   await expect(page.getByText("Useful design tips")).toHaveCount(0);
   await page.getByRole("tab", { name: /X bookmarks/ }).click();
 
@@ -92,8 +98,9 @@ test("enabled X import can be reopened from Settings after reload", async ({ pag
   await expect(page.getByRole("button", { name: "Open X import guide" })).toBeVisible();
 });
 
-
-test("the optional X tab is reachable on a phone without changing bottom navigation", async ({ page }) => {
+test("the optional X tab is reachable on a phone without changing bottom navigation", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     localStorage.setItem(

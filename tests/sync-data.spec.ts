@@ -254,7 +254,9 @@ test("Google pairing merges devices, never sends plaintext, and asks to reconnec
     await laptop.goto("/");
     await settings(laptop);
     // The recovery key can be pasted in easy-to-read groups.
-    await laptop.getByLabel("Already syncing on another device?").fill(key.match(/.{8}/g)!.join(" "));
+    await laptop
+      .getByLabel("Already syncing on another device?")
+      .fill(key.match(/.{8}/g)!.join(" "));
     await laptop.getByRole("button", { name: "Connect Google Drive", exact: true }).click();
     await expect(laptop.getByText("Up to date", { exact: true })).toBeVisible();
     await expect.poll(async () => (await stored(laptop)).bookmarks.length).toBe(3);
