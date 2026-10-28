@@ -48,6 +48,8 @@ import { CollectionDialog } from "./collection-dialog";
 import { SavedBookmarksDialog } from "./saved-bookmarks-dialog";
 import { folderKey } from "@/lib/paste";
 import { searchScore } from "@/lib/bookmarks";
+import { personalLibrary } from "@/lib/backup";
+import { downloadStorageRecovery } from "@/lib/storage";
 const ConnectionsDialog = dynamic(
   () => import("./connections-dialog").then((m) => m.ConnectionsDialog),
   { ssr: false },
@@ -57,7 +59,19 @@ type InstallEvent = Event & {
   userChoice: Promise<{ outcome: string }>;
 };
 export function NestApp() {
-  const { library, settings, ready, syncState, online, setLibrary, toast } = useLibrary();
+  const {
+    library,
+    settings,
+    ready,
+    storageState,
+    storageError,
+    retryStorage,
+    syncState,
+    online,
+    setLibrary,
+    toast,
+  } = useLibrary();
+  const [recoveryError, setRecoveryError] = useState("");
   const [view, setView] = useState<View>("all");
   const [query, setQuery] = useState("");
   const [topic, setTopic] = useState("All");
@@ -142,7 +156,8 @@ export function NestApp() {
         if (view === "dead") return b.status === "dead";
         if (b.archived) return false;
         if (view === "x") return b.source === "x";
-        if ((view === "all" || view === "favorites" || view === "unread") && b.source === "x") return false;
+        if ((view === "all" || view === "favorites" || view === "unread") && b.source === "x")
+          return false;
         if (view === "favorites") return b.favorite;
         if (view === "unread") return !b.read;
         if (view.startsWith("list:")) return b.listIds.includes(view.slice(5));
@@ -216,7 +231,7 @@ export function NestApp() {
   }
   if (!ready)
     return (
-      <main id="main-content" className="app-loading" aria-busy="true">
+      <main id="main-content" className="app-loading" aria-busy={storageState === "loading"}>
         <img
           src="/brand/nest-app-icon-128.webp"
           width="56"
@@ -226,7 +241,40 @@ export function NestApp() {
         />
         <h1>A smarter home for your bookmarks.</h1>
         <p>Save links, collect ideas, and find the good things again.</p>
-        <span>Making a little room for your curiosity…</span>
+        {storageState === "error" ? (
+          <section className="storage-recovery" aria-label="Library recovery">
+            <h2>Let’s keep your library safe.</h2>
+            <p role="alert">{storageError}</p>
+            <p>
+              Allow browser storage for this site, then retry. If the problem continues, download
+              the stored copy before clearing site data. Recovery files contain private bookmarks
+              and are not normal Nest backups.
+            </p>
+            <div className="recovery-actions">
+              <button className="button primary" onClick={retryStorage}>
+                Try opening again
+              </button>
+              <button
+                className="button secondary"
+                onClick={() =>
+                  void downloadStorageRecovery().catch((error: unknown) =>
+                    setRecoveryError(
+                      error instanceof Error
+                        ? error.message
+                        : "Could not download the stored copy.",
+                    ),
+                  )
+                }
+              >
+                Download stored copy
+              </button>
+              <a href="/guide#recovery">Recovery help</a>
+            </div>
+            {recoveryError && <p role="alert">{recoveryError}</p>}
+          </section>
+        ) : (
+          <output>Opening your saved library…</output>
+        )}
       </main>
     );
   return (
@@ -387,24 +435,32 @@ export function NestApp() {
             <strong>{view.startsWith("list:") ? "Collection" : "My library"}</strong>
           </div>
           <div className="topbar-right">
-            <button className="sync-status" aria-label="View bookmark sync status and backups" onClick={() => setDialog("sync-settings")}>
+            <button
+              className="sync-status"
+              aria-label="View bookmark sync status and backups"
+              onClick={() => setDialog("sync-settings")}
+            >
               {!online ? <CloudOff size={15} /> : <Cloud size={15} />}
               <span>
-                {!online
-                  ? "Offline · saved locally"
-                  : syncState === "synced"
-                    ? settings.syncProvider === "google"
-                      ? "Google Drive · Up to date"
-                      : "Cloud sync · Up to date"
-                    : syncState === "syncing"
-                      ? "Syncing…"
-                      : syncState === "reconnect"
-                        ? "Reconnect Google Drive"
-                        : syncState === "unconfigured"
-                          ? "Sync needs setup"
-                          : syncState === "error"
-                            ? "Sync error · Open settings"
-                            : "Saved on this device"}
+                {storageState === "error"
+                  ? "Changes not saved"
+                  : storageState === "saving"
+                    ? "Saving on this device…"
+                    : !online
+                      ? "Offline · saved locally"
+                      : syncState === "synced"
+                        ? settings.syncProvider === "google"
+                          ? "Google Drive · Up to date"
+                          : "Cloud sync · Up to date"
+                        : syncState === "syncing"
+                          ? "Syncing…"
+                          : syncState === "reconnect"
+                            ? "Reconnect Google Drive"
+                            : syncState === "unconfigured"
+                              ? "Sync needs setup"
+                              : syncState === "error"
+                                ? "Sync error · Open settings"
+                                : "Saved on this device"}
               </span>
               <i className={!online ? "offline" : ""} />
             </button>
@@ -418,6 +474,19 @@ export function NestApp() {
           </div>
         </header>
         <main id="main-content">
+          {storageState === "error" && (
+            <section className="storage-warning" aria-label="Unsaved changes">
+              <p role="alert">{storageError}</p>
+              <div className="recovery-actions">
+                <button className="button secondary" onClick={retryStorage}>
+                  Retry saving
+                </button>
+                <button className="button primary" onClick={() => setDialog("sync-settings")}>
+                  Back up my library
+                </button>
+              </div>
+            </section>
+          )}
           <div className="greeting">
             <div>
               <div className="eyebrow greeting-label">
@@ -430,15 +499,18 @@ export function NestApp() {
                   ? "Save what sparks something. Find it when you need it."
                   : view === "x"
                     ? "A quiet home for the posts you saved on X, separate from your other links."
-                  : view === "dead"
-                    ? "Repeatedly missing pages land here. Temporary errors get another chance."
-                    : view === "archive"
-                      ? "Out of the way. Always here when you need them."
-                      : "A few good things, all in one place."}
+                    : view === "dead"
+                      ? "Repeatedly missing pages land here. Temporary errors get another chance."
+                      : view === "archive"
+                        ? "Out of the way. Always here when you need them."
+                        : "A few good things, all in one place."}
               </p>
             </div>
             <div className="greeting-actions">
-              <button className="button import-button" onClick={() => setDialog(view === "x" ? "x-import" : "import")}>
+              <button
+                className="button import-button"
+                onClick={() => setDialog(view === "x" ? "x-import" : "import")}
+              >
                 <Upload size={16} /> {view === "x" ? "Import from X" : "Import"}
               </button>
               {view !== "x" && (
@@ -448,6 +520,17 @@ export function NestApp() {
               )}
             </div>
           </div>
+          {active.some((bookmark) => bookmark.demo) && (
+            <section className="sample-notice" aria-label="Sample library">
+              <div>
+                <strong>You’re exploring sample bookmarks.</strong>
+                <p>Samples stay out of backups and sync. Editing one makes it yours.</p>
+              </div>
+              <button className="text-button" onClick={() => setLibrary(personalLibrary)}>
+                Clear samples
+              </button>
+            </section>
+          )}
           {settings.xImportEnabled && (view === "all" || view === "x") && (
             <div className="bookmark-source-tabs" role="tablist" aria-label="Bookmark source">
               <button
@@ -456,7 +539,8 @@ export function NestApp() {
                 className={view === "all" ? "active" : ""}
                 onClick={() => navigate("all")}
               >
-                <Bookmark size={16} /> Bookmarks <span>{ordinary.filter((b) => !b.archived).length}</span>
+                <Bookmark size={16} /> Bookmarks{" "}
+                <span>{ordinary.filter((b) => !b.archived).length}</span>
               </button>
               <button
                 role="tab"
@@ -464,7 +548,8 @@ export function NestApp() {
                 className={view === "x" ? "active" : ""}
                 onClick={() => navigate("x")}
               >
-                <XLogo size={16} /> X bookmarks <span>{xBookmarks.filter((b) => !b.archived).length}</span>
+                <XLogo size={16} /> X bookmarks{" "}
+                <span>{xBookmarks.filter((b) => !b.archived).length}</span>
               </button>
             </div>
           )}
@@ -506,9 +591,9 @@ export function NestApp() {
                     ? "All bookmarks"
                     : view === "x"
                       ? "X bookmarks"
-                    : view === "dead"
-                      ? "Broken links"
-                      : "Bookmarks"}{" "}
+                      : view === "dead"
+                        ? "Broken links"
+                        : "Bookmarks"}{" "}
                 <span>{filtered.length}</span>
               </h2>
               <div className="library-heading-right">
@@ -607,7 +692,14 @@ export function NestApp() {
                 {[
                   "All",
                   ...topics.filter((t) => t !== "Unsorted"),
-                  ...((view === "x" ? xBookmarks : view === "all" || view === "favorites" || view === "unread" ? ordinary : active).some((b) => b.topic === "Unsorted") ? ["Unsorted"] : []),
+                  ...((view === "x"
+                    ? xBookmarks
+                    : view === "all" || view === "favorites" || view === "unread"
+                      ? ordinary
+                      : active
+                  ).some((b) => b.topic === "Unsorted")
+                    ? ["Unsorted"]
+                    : []),
                 ].map((t) => (
                   <button
                     key={t}
@@ -623,7 +715,9 @@ export function NestApp() {
               <span className="results-label">{filtered.length} little finds</span>
             </div>
             {filtered.length ? (
-              <div className={`bookmark-grid ${layout === "list" ? "list-view" : layout === "shelf" ? "shelf-view" : ""}`}>
+              <div
+                className={`bookmark-grid ${layout === "list" ? "list-view" : layout === "shelf" ? "shelf-view" : ""}`}
+              >
                 {filtered.map((b, i) => (
                   <BookmarkCard
                     key={b.id}
@@ -642,18 +736,18 @@ export function NestApp() {
                     ? "A new thread to follow."
                     : view === "x"
                       ? "Your saved posts have a place here."
-                    : view === "dead"
-                      ? "Nothing broken. A lovely thing."
-                      : "A little space for something good."
+                      : view === "dead"
+                        ? "Nothing broken. A lovely thing."
+                        : "A little space for something good."
                 }
                 description={
                   query
                     ? "Try a different word, topic, or a simpler description."
                     : view === "x"
                       ? "Import your X bookmarks using the guided CSV import. They’ll stay separate from your regular links."
-                    : view === "dead"
-                      ? "Synced links are checked on a schedule. Confirmed missing pages will appear here."
-                      : "Add a bookmark, import your favorites, or explore another collection."
+                      : view === "dead"
+                        ? "Synced links are checked on a schedule. Confirmed missing pages will appear here."
+                        : "Add a bookmark, import your favorites, or explore another collection."
                 }
               >
                 {query ? (
@@ -669,7 +763,10 @@ export function NestApp() {
                   </button>
                 ) : (
                   view !== "dead" && (
-                    <button className="button primary" onClick={() => setDialog(view === "x" ? "x-import" : "add")}>
+                    <button
+                      className="button primary"
+                      onClick={() => setDialog(view === "x" ? "x-import" : "add")}
+                    >
                       {view === "x" ? <Upload size={15} /> : <Plus size={15} />}
                       {view === "x" ? "Import from X" : "Save your first find"}
                     </button>
@@ -687,6 +784,17 @@ export function NestApp() {
             </a>
             <a className="brand-resource-link" href="/guide">
               A little guide <ArrowUpRight size={11} />
+            </a>
+            <a className="brand-resource-link" href="/case-study">
+              Case study <ArrowUpRight size={11} />
+            </a>
+            <a
+              className="brand-resource-link"
+              href="https://github.com/thembaxx/nest/issues"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Support <ArrowUpRight size={11} />
             </a>
             {active.some((b) => b.demo) && (
               <button onClick={() => setDialog("welcome")}>

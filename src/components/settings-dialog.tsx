@@ -17,6 +17,7 @@ import { useLibrary } from "./library-provider";
 import { models, loadModel, removeModel } from "@/lib/ai";
 import { SyncDataSettings } from "./sync-data-settings";
 import type { Settings } from "@/lib/types";
+import { personalLibrary } from "@/lib/backup";
 export function SettingsDialog({
   onClose,
   onInstall,
@@ -237,7 +238,10 @@ export function SettingsDialog({
             <div className="setting-row">
               <div>
                 <h4>X import guide</h4>
-                <p>Reopen the CSV guide. Turning off this setting hides the X tab without deleting imported posts.</p>
+                <p>
+                  Reopen the CSV guide. Turning off this setting hides the X tab without deleting
+                  imported posts.
+                </p>
               </div>
               <button className="button secondary" onClick={onOpenXImport}>
                 Open guide
@@ -249,12 +253,15 @@ export function SettingsDialog({
             <div className="setting-row">
               <div>
                 <h4>A fresh little canvas</h4>
-                <p>Remove the sample bookmarks whenever you’re ready.</p>
+                <p>
+                  Remove untouched sample bookmarks and folders. Your own links and edited samples
+                  stay.
+                </p>
               </div>
               <button
                 className="button secondary"
                 onClick={() => {
-                  setLibrary((s) => ({ ...s, bookmarks: s.bookmarks.filter((b) => !b.demo) }));
+                  setLibrary(personalLibrary);
                   toast("Sample bookmarks cleared. Make yourself at home.");
                 }}
               >

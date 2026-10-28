@@ -21,6 +21,7 @@ import { parseCsvImport } from "@/lib/csv-import";
 import { asXImport } from "@/lib/x-import";
 import { parseServiceImport, parseRaindropItems } from "@/lib/service-import";
 import type { Library } from "@/lib/types";
+import { personalLibrary } from "@/lib/backup";
 export function AddDialog({
   onClose,
   initial = "",
@@ -38,7 +39,8 @@ export function AddDialog({
   onImportedX?: () => void;
   initialCollection?: string;
 }) {
-  const { add, library, settings, toast, setSettings } = useLibrary();
+  const { add, library, settings, toast, setSettings, setLibrary } = useLibrary();
+  const [clearSamples, setClearSamples] = useState(true);
   const [text, setText] = useState(initial);
   const [tab, setTab] = useState(importMode ? "import" : "paste");
   const [busy, setBusy] = useState(false);
@@ -159,18 +161,27 @@ export function AddDialog({
       const parsed = file.name.toLowerCase().endsWith(".csv")
         ? parseCsvImport(content)
         : file.name.toLowerCase().endsWith(".json")
-          ? parseServiceImport(JSON.parse(content)) ?? parseImport(content, file.name, { autoOrganize: settings.autoSort })
+          ? (parseServiceImport(JSON.parse(content)) ??
+            parseImport(content, file.name, { autoOrganize: settings.autoSort }))
           : parseImport(content, file.name, { autoOrganize: settings.autoSort });
       const prepared = xImportMode ? asXImport(parsed) : parsed;
       const bookmarks = prepared.bookmarks.map((bookmark) => bookmarkSchema.parse(bookmark));
       const lists = prepared.lists.map((list) => listSchema.parse(list));
       if (!bookmarks.length)
-        throw Error(xImportMode
-          ? "No X post links found. Export your saved X bookmarks as a CSV with a URL or Tweet_URL column."
-          : "No valid bookmarks found. Choose a browser HTML, JSON or CSV export.");
+        throw Error(
+          xImportMode
+            ? "No X post links found. Export your saved X bookmarks as a CSV with a URL or Tweet_URL column."
+            : "No valid bookmarks found. Choose a browser HTML, JSON or CSV export.",
+        );
       setImportPreview({ bookmarks, lists });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to read this file.");
+      setError(
+        e instanceof SyntaxError
+          ? "This JSON file could not be read. Choose a valid browser export, or restore a Nest backup in Settings → Sync & data."
+          : e instanceof Error
+            ? e.message
+            : "Unable to read this file. Choose a browser HTML, JSON or CSV export.",
+      );
     } finally {
       setBusy(false);
     }
@@ -183,12 +194,12 @@ export function AddDialog({
       const data = await response.json();
       if (!response.ok) throw Error(data.error || "Raindrop import failed.");
       const folders = new Map<number, string>(
-        (data.collections as { id: number; title: string }[]).map(c => [c.id, c.title]),
+        (data.collections as { id: number; title: string }[]).map((c) => [c.id, c.title]),
       );
       const parsed = parseRaindropItems(data.items, folders);
       setImportPreview({
-        bookmarks: parsed.bookmarks.map(b => bookmarkSchema.parse(b)),
-        lists: parsed.lists.map(l => listSchema.parse(l)),
+        bookmarks: parsed.bookmarks.map((b) => bookmarkSchema.parse(b)),
+        lists: parsed.lists.map((l) => listSchema.parse(l)),
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to import from Raindrop.");
@@ -200,7 +211,9 @@ export function AddDialog({
     if (!importPreview) return;
     setBusy(true);
     try {
-      announce(add(importPreview.bookmarks, importPreview.lists), true);
+      const result = add(importPreview.bookmarks, importPreview.lists);
+      if (clearSamples) setLibrary(personalLibrary);
+      announce(result, true);
       if (xImportMode) onImportedX?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to import bookmarks.");
@@ -210,7 +223,13 @@ export function AddDialog({
   }
   return (
     <Modal
-      title={xImportMode ? "Import from X." : tab === "paste" ? "Something worth keeping." : "Bring your bookmarks home."}
+      title={
+        xImportMode
+          ? "Import from X."
+          : tab === "paste"
+            ? "Something worth keeping."
+            : "Bring your bookmarks home."
+      }
       subtitle={
         initialCollection && tab === "paste"
           ? "Paste new links or move bookmarks you’ve already saved. Choose a destination below."
@@ -220,22 +239,24 @@ export function AddDialog({
         if (!busy) onClose();
       }}
     >
-      {!xImportMode && <div className="segmented">
-        <button
-          disabled={busy}
-          className={tab === "paste" ? "active" : ""}
-          onClick={() => setTab("paste")}
-        >
-          <LinkSimple size={16} /> Paste links
-        </button>
-        <button
-          disabled={busy}
-          className={tab === "import" ? "active" : ""}
-          onClick={() => setTab("import")}
-        >
-          <Upload size={16} /> Import bookmarks
-        </button>
-      </div>}
+      {!xImportMode && (
+        <div className="segmented">
+          <button
+            disabled={busy}
+            className={tab === "paste" ? "active" : ""}
+            onClick={() => setTab("paste")}
+          >
+            <LinkSimple size={16} /> Paste links
+          </button>
+          <button
+            disabled={busy}
+            className={tab === "import" ? "active" : ""}
+            onClick={() => setTab("import")}
+          >
+            <Upload size={16} /> Import bookmarks
+          </button>
+        </div>
+      )}
       {tab === "paste" ? (
         <>
           <label className="field-label" htmlFor="links">
@@ -383,7 +404,10 @@ export function AddDialog({
           {xImportMode && (
             <div className="note-box">
               <strong>Your X bookmarks, coming home.</strong>
-              <p>Choose your exported CSV below. Review the count and duplicates before confirming. Nothing is removed from X.</p>
+              <p>
+                Choose your exported CSV below. Review the count and duplicates before confirming.
+                Nothing is removed from X.
+              </p>
               {onOpenXGuide && (
                 <button className="text-button" disabled={busy} onClick={onOpenXGuide}>
                   Back to X import guide
@@ -391,14 +415,25 @@ export function AddDialog({
               )}
             </div>
           )}
-          {!xImportMode && <div className="note-box">
-            <strong>Import directly from Raindrop.io</strong>
-            <p>Connect your account, then preview your bookmarks before importing. Access is temporary and is not used for ongoing sync.</p>
-            <a className="button secondary" href="/api/import/raindrop/start">Connect Raindrop</a>
-            <button className="button secondary" disabled={busy} onClick={() => void importRaindrop()}>
-              Load connected bookmarks
-            </button>
-          </div>}
+          {!xImportMode && (
+            <div className="note-box">
+              <strong>Import directly from Raindrop.io</strong>
+              <p>
+                Connect your account, then preview your bookmarks before importing. Access is
+                temporary and is not used for ongoing sync.
+              </p>
+              <a className="button secondary" href="/api/import/raindrop/start">
+                Connect Raindrop
+              </a>
+              <button
+                className="button secondary"
+                disabled={busy}
+                onClick={() => void importRaindrop()}
+              >
+                Load connected bookmarks
+              </button>
+            </div>
+          )}
           <label
             htmlFor="import-file"
             className="import-drop"
@@ -413,7 +448,11 @@ export function AddDialog({
             <strong>
               {busy ? "Making room for your collection…" : "Drop your bookmark file here"}
             </strong>
-            <span>{xImportMode ? "X bookmarks CSV export" : "HTML, JSON or CSV exports from browsers and bookmark apps"}</span>
+            <span>
+              {xImportMode
+                ? "X bookmarks CSV export"
+                : "HTML, JSON or CSV exports from browsers and bookmark apps"}
+            </span>
             <span className="button secondary">
               Choose a file <ArrowUpRight size={15} />
             </span>
@@ -429,17 +468,39 @@ export function AddDialog({
             />
           </label>
           {importPreview && (
-            <div className="note-box" role="status">
+            <div className="note-box" aria-live="polite">
               <strong>Ready to import {importPreview.bookmarks.length} bookmarks</strong>
               <p>
-                {importPreview.lists.length} collections · {
-                  importPreview.bookmarks.filter(b => existing.has(canonicalUrl(b.url))).length
-                } already saved. Existing bookmarks will be kept and matching folders reused.
+                {importPreview.lists.length} collections ·{" "}
+                {importPreview.bookmarks.filter((b) => existing.has(canonicalUrl(b.url))).length}{" "}
+                already saved. Existing bookmarks will be kept and matching folders reused.
               </p>
+              {library.bookmarks.some((bookmark) => bookmark.demo) && (
+                <label
+                  className="paste-auto"
+                  htmlFor="clear-import-samples"
+                  aria-label="Remove untouched samples"
+                >
+                  <input
+                    id="clear-import-samples"
+                    type="checkbox"
+                    checked={clearSamples}
+                    onChange={(event) => setClearSamples(event.target.checked)}
+                  />
+                  <span>
+                    <strong>Remove untouched samples</strong>
+                    <small>Keep my imported bookmarks and any samples I’ve edited.</small>
+                  </span>
+                </label>
+              )}
               <button className="button primary" disabled={busy} onClick={confirmImport}>
                 <Check size={16} /> Confirm import
               </button>
-              <button className="button secondary" disabled={busy} onClick={() => setImportPreview(null)}>
+              <button
+                className="button secondary"
+                disabled={busy}
+                onClick={() => setImportPreview(null)}
+              >
                 Cancel
               </button>
             </div>

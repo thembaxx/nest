@@ -10,6 +10,67 @@ import {
 } from "../src/lib/bookmarks";
 import { parsePaste } from "../src/lib/paste";
 import { ingestBookmarks } from "../src/lib/organize";
+import { personalLibrary } from "../src/lib/backup";
+import { seed } from "../src/lib/seed";
+
+test("importing a sample URL adopts the real record before clearing untouched samples", () => {
+  const incoming = makeBookmark(seed.bookmarks[0].url, {
+    title: "My actual browser bookmark",
+    note: "My note",
+  });
+  const result = ingestBookmarks(seed, [incoming]);
+  const personal = personalLibrary(result.library);
+  assert.equal(personal.bookmarks.length, 1);
+  assert.equal(personal.bookmarks[0].title, incoming.title);
+  assert.equal(personal.bookmarks[0].note, incoming.note);
+  assert.equal(personal.bookmarks[0].demo, false);
+  assert.deepEqual(personal.bookmarks[0].listIds, []);
+  assert.deepEqual(personal.lists, []);
+});
+
+test("clearing samples keeps folders used by edited samples and imported bookmarks", () => {
+  const edited = { ...seed.bookmarks[0], demo: false, note: "My personal note", updatedAt: 100 };
+  const local = {
+    ...seed,
+    bookmarks: seed.bookmarks.map((bookmark) => (bookmark.id === edited.id ? edited : bookmark)),
+  };
+  const kept = personalLibrary(local);
+  assert.equal(kept.bookmarks.length, 1);
+  assert.deepEqual(
+    kept.lists.map((list) => list.id),
+    edited.listIds,
+  );
+  assert.ok(kept.lists[0].updatedAt > 0);
+  const incoming = makeBookmark("https://example.com/design-reference", {
+    listIds: ["browser-folder"],
+  });
+  const imported = ingestBookmarks(
+    seed,
+    [incoming],
+    [{ id: "browser-folder", name: "Design things", color: "lilac", updatedAt: 20 }],
+  );
+  const personal = personalLibrary(imported.library);
+  assert.deepEqual(personal.bookmarks[0].listIds, ["design"]);
+  assert.deepEqual(
+    personal.lists.map((list) => list.id),
+    ["design"],
+  );
+  assert.equal(personal.lists[0].updatedAt, personal.bookmarks[0].updatedAt);
+});
+
+test("clearing samples retains edited empty folders and non-sample zero-time folders", () => {
+  const local = {
+    bookmarks: [],
+    lists: [
+      { ...seed.lists[0], name: "My renamed folder" },
+      { id: "custom", name: "My empty folder", color: "blue", updatedAt: 0 },
+    ],
+  };
+  assert.deepEqual(
+    personalLibrary(local).lists.map((list) => list.name),
+    ["My renamed folder", "My empty folder"],
+  );
+});
 
 test("extracts bare, international, protocol-relative, and balanced URLs from prose", () => {
   assert.deepEqual(

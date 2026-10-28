@@ -2,7 +2,18 @@
 
 An offline-first personal bookmark library with collections, search, imports, exports and optional cloud sync.
 
-[Browse the source](https://github.com/thembaxx/nest)
+[Open Nest](https://nest-iota-three.vercel.app) · [Case study](https://nest-iota-three.vercel.app/case-study) · [Getting started](https://nest-iota-three.vercel.app/guide) · [Public source](https://github.com/thembaxx/nest)
+
+## Try the complete journey
+
+1. Choose **Import my bookmarks** on the first visit, or explore the labeled sample library. Starting empty removes untouched sample folders as well as links.
+2. Export an HTML bookmark file from your browser, choose it in Nest, review the preview, and **Confirm import**. The preview lets you remove untouched samples; real imported links and edited samples stay.
+3. Open **Edit bookmark** to add notes, tags, and collections. Search the words you remember, including personal notes; `Ctrl K` / `⌘ K` focuses search.
+4. Open **Settings → Sync & data** to download a full JSON or password-encrypted backup. On a second browser, choose the backup, preview it, then restore. HTML export transfers active links to another browser’s bookmark tools.
+
+Browser storage can be cleared or evicted, so keep backups. If loading fails, Nest keeps the stored copy and offers retry and a raw recovery download. If saving fails, the warning stays visible with backup and retry actions. Recovery files contain private data and may need manual repair; they are not normal Nest backups.
+
+[Release evidence and limitations](docs/launch-readiness.md) records observed checks, including the production browser journey. This independent project makes no adoption or business-outcome claims. For help, [open a GitHub issue](https://github.com/thembaxx/nest/issues) with your browser, reproduction steps, and error text; omit private bookmarks, passwords, and recovery keys. There is no guaranteed support response time.
 
 ## Engineering highlights
 
@@ -10,7 +21,7 @@ IndexedDB persistence, duplicate detection and per-record sync reconciliation. G
 
 ## Technology
 
-Declared in [package.json](package.json): Next.js `^16.0.0` · React `^19.2.0` · TypeScript `^5.9.0` · Tailwind CSS `^4.1.0` · Three.js `^0.180.0` · Motion `^12.23.0` · PixiJS `^8.13.0` · WebLLM `^0.2.79` · Zod `^4.0.0`.
+Next.js App Router · React · TypeScript · Tailwind CSS · Three.js · Motion · PixiJS · WebLLM · Zod. Versions are declared in [package.json](package.json) and pinned in [pnpm-lock.yaml](pnpm-lock.yaml).
 
 **Quality tooling:** `lint`, `format:check`, `typecheck`, `test` scripts are available. See the setup guide below for prerequisites. Live Google consent needs a configured OAuth client; automated Google tests mock external responses.
 
@@ -119,7 +130,6 @@ Pasted links can omit `https://`. For example, `Save figma.com and github.com un
 The collection shelf shows every active collection, with search and sorting by name, bookmark count, or recent changes. Collection tools support rename, color, JSON export, removal without deleting bookmarks, and a searchable saved-bookmark picker. Open the options button beside a collection in the sidebar or choose **Manage collection** inside it. Bookmark cards inside a collection also let you remove individual links from that collection while keeping them in the library. Bookmark details support renaming, membership changes, and trash; restore trashed links in **Settings → Sync & data**. Simple scoped instructions (move, favorite, archive, mark read) work locally without a model download and preview changes before applying. Optional model context includes collection names, URLs, notes, and bookmark states. Sync protects personal records from sample data when pairing devices.
 
 Page palettes live in `src/lib/page-palette.ts`, shared by initial HTML, CSS, the PWA manifest, and the edge controller. Full-width fixed edge strips sit directly under `body`, outside transformed app content. Regions declare `data-edge-background="page"`, `"surface"`, `"sidebar"`, or an opaque CSS color; the controller paints the region, samples the regions adjacent to each visible viewport edge, and shares those colors with the strips, document backgrounds, and theme-color tags. Scroll restoration, visual viewport changes, theme changes, and resizing schedule a single animation-frame update. Route cleanup removes listeners and restores owned document styles and metadata. Browser tests cover Chromium and mobile WebKit geometry, scrolling, restoration, themes, and cleanup.
-
 
 ### Raindrop.io direct import
 

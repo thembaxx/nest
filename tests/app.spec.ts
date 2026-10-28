@@ -66,7 +66,9 @@ test("browser HTML import preserves folders and skips duplicates", async ({ page
       '<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><p><DT><H3>Research notes</H3><DL><p><DT><A HREF="https://example.net/research">A research note</A><DT><A HREF="https://example.net/research?utm_source=browser">Same bookmark</A></DL><p></DL>',
     ),
   });
-  await expect(page.locator(".bookmark-card")).toHaveCount(10);
+  await expect(page.getByText("Ready to import 2 bookmarks")).toBeVisible();
+  await page.getByRole("button", { name: "Confirm import" }).click();
+  await expect(page.locator(".bookmark-card")).toHaveCount(1);
   await expect(page.getByRole("button", { name: /Research notes/ }).first()).toBeVisible();
   await page.getByRole("textbox", { name: "Search bookmarks" }).fill("research");
   await expect(page.locator(".bookmark-card")).toHaveCount(1);
