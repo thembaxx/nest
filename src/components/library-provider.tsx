@@ -42,6 +42,9 @@ type Context = {
   library: Library;
   settings: Settings;
   ready: boolean;
+  storageState: "loading" | "saving" | "saved" | "error";
+  storageError: string;
+  retryStorage: () => void;
   syncState: SyncState;
   syncError: string;
   lastSyncedAt: number | null;
@@ -66,6 +69,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [settings, applySettings] = useState<Settings>(defaultSettings);
   const syncProvider = activeSyncProvider(settings);
   const [ready, setReady] = useState(false);
+  const [storageState, setStorageState] = useState<Context["storageState"]>("loading");
+  const [storageError, setStorageError] = useState("");
+  const [storageAttempt, setStorageAttempt] = useState(0);
   const [online, setOnline] = useState(true);
   const [syncState, setSyncState] = useState<SyncState>("local");
   const [syncError, setSyncError] = useState("");
@@ -90,16 +96,24 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     let live = true;
-    void readLibrary().then((data) => {
-      if (!live) return;
-      if (data) setLibrary(data);
-      try {
-        const s = localStorage.getItem("nest-settings");
-        if (s) applySettings({ ...defaultSettings, ...JSON.parse(s) });
-      } catch {}
-      setOnline(navigator.onLine);
-      setReady(true);
-    });
+    void readLibrary()
+      .then((data) => {
+        if (!live) return;
+        if (data) setLibrary(data);
+        try {
+          const s = localStorage.getItem("nest-settings");
+          if (s) applySettings({ ...defaultSettings, ...JSON.parse(s) });
+        } catch {}
+        setOnline(navigator.onLine);
+        setReady(true);
+      })
+      .catch((error: unknown) => {
+        if (!live) return;
+        setStorageError(
+          error instanceof Error ? error.message : "Your saved library could not be opened.",
+        );
+        setStorageState("error");
+      });
     const on = () => setOnline(navigator.onLine);
     window.addEventListener("online", on);
     window.addEventListener("offline", on);
@@ -108,7 +122,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("online", on);
       window.removeEventListener("offline", on);
     };
-  }, []);
+  }, [storageAttempt]);
   useEffect(() => {
     const failed = () =>
       toast(
@@ -132,10 +146,35 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     if (!ready) return;
-    void writeLibrary(library).catch(() =>
-      toast("Your device storage is full. Export a backup in Settings."),
-    );
-  }, [library, ready, toast]);
+    let live = true;
+    queueMicrotask(() => {
+      if (live) setStorageState("saving");
+    });
+    void writeLibrary(library)
+      .then(() => {
+        if (!live) return;
+        setStorageState("saved");
+        setStorageError("");
+      })
+      .catch(() => {
+        if (!live) return;
+        setStorageState("error");
+        setStorageError(
+          "Your latest changes are only in this tab. Browser storage is full or unavailable. Download a backup before closing Nest.",
+        );
+      });
+    return () => {
+      live = false;
+    };
+  }, [library, ready]);
+  const retryStorage = useCallback(() => {
+    if (ready) setLibrary((value) => ({ ...value }));
+    else {
+      setStorageState("loading");
+      setStorageError("");
+      setStorageAttempt((value) => value + 1);
+    }
+  }, [ready]);
   useEffect(() => {
     if (!ready) return;
     try {
@@ -383,6 +422,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         library,
         settings,
         ready,
+        storageState,
+        storageError,
+        retryStorage,
         syncState,
         syncError,
         lastSyncedAt,

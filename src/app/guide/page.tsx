@@ -37,7 +37,9 @@ const sections = [
       <>
         <p>
           In your browser’s Bookmark Manager, choose <strong>Export bookmarks</strong> and save the
-          HTML file. In Nest, choose <strong>Import</strong> and drop in the file.
+          HTML file. In Nest, choose <strong>Import</strong>, drop in the file, review the preview,
+          then choose <strong>Confirm import</strong>. You can remove untouched samples as part of
+          the import; edited samples and your own bookmarks stay.
         </p>
         <p>
           HTML exports from Chrome, Safari, Firefox, Edge, and Brave work with Nest. Folders become
@@ -184,6 +186,37 @@ const sections = [
           password, select Preview backup, then Restore backup. Restoring merges records and keeps
           newer changes and existing bookmarks. Old Nest JSON exports also restore here. Files up to
           20 MB are supported. Keep occasional backups because browsers can clear local storage.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "recovery",
+    number: "09",
+    title: "When something needs a little care.",
+    body: (
+      <>
+        <p>
+          If a library cannot open, Nest keeps the stored copy and offers a retry. Allow site
+          storage in your browser and try again. Download the stored copy before clearing browser
+          data; this recovery file may need manual repair and is not a normal Nest backup. If a save
+          fails, keep the tab open and use <strong>Back up my library</strong> in the warning, then
+          retry saving after freeing space. Restore a normal JSON or encrypted backup from
+          <strong> Settings → Sync & data</strong> on another browser or device.
+        </p>
+        <p>
+          Samples are labeled above the library and excluded from backups and sync. Clear samples
+          removes untouched example folders too. To remove all local data, first download a backup
+          and disconnect sync in Settings, then use your browser’s site-data controls. Clearing this
+          browser does not erase Google Drive or legacy server copies; see the privacy guide.
+        </p>
+        <p>
+          Need help?{" "}
+          <a href="https://github.com/thembaxx/nest/issues" target="_blank" rel="noreferrer">
+            Open an issue on GitHub
+          </a>{" "}
+          with your browser, the steps you took, and any error text. Do not attach private bookmark
+          files, passwords, or recovery keys. The project has no guaranteed support response time.
         </p>
       </>
     ),

@@ -40,7 +40,7 @@ export function RevisionHistory() {
         Review versions replaced during a merge. The latest 100 revisions, up to 1 MB, stay on this
         device only. Clearing browser data removes them; cloud backups do not contain this history.
       </p>
-      <p role="alert">{error}</p>
+      {error && <p role="alert">{error}</p>}
       {history.length === 0 ? (
         <p>No replaced versions have been recorded on this device.</p>
       ) : (

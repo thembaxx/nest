@@ -197,3 +197,72 @@ html { scroll-padding-top: calc(var(--edge-top-size) + 12px); scroll-padding-bot
 .bookmark-source-tabs button span{font-variant-numeric:tabular-nums;font-size:11px;opacity:.7}
 @media(max-width:600px){.bookmark-source-tabs{width:100%;margin-bottom:17px}.bookmark-source-tabs button{flex:1;min-width:0;padding:9px 7px;gap:5px;font-size:11px}}
 @media(prefers-reduced-motion:reduce){.bookmark-source-tabs button{transition:none}}
+
+
+/* Keep storage and sample status visible without changing the library layout. */
+.sample-notice,
+.storage-warning,
+.storage-recovery {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--surface);
+  line-height: 1.7;
+}
+.sample-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 24px;
+  font-size: 12px;
+}
+.sample-notice p {
+  color: var(--muted);
+  font-size: 11px;
+}
+.storage-warning {
+  margin: 0 0 24px;
+  border-color: var(--green);
+  font-size: 13px;
+}
+.storage-warning p,
+.storage-recovery p {
+  margin-bottom: 12px;
+}
+.storage-recovery {
+  max-width: 620px;
+  text-align: left;
+  margin: 16px;
+}
+.storage-recovery h2 {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+.recovery-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.recovery-actions a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .sample-notice {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .main-footer {
+    flex-wrap: wrap;
+  }
+  .storage-recovery .button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.main-footer { flex-wrap: wrap; }
+@media (max-width: 365px) { .topic-filters { margin-left: -16px; margin-right: -16px; width: calc(100% + 32px); padding-left: 16px; padding-right: 16px; } }

@@ -44,10 +44,14 @@ export function PublicSite({ children, active }: { children: ReactNode; active?:
         <nav aria-label="Nest resources">
           <Link href="/guide">Getting started</Link>
           <Link href="/privacy">Privacy & storage</Link>
+          <Link href="/case-study">Case study</Link>
           <Link href="/brand">Brand assets</Link>
           <a href="/llms.txt">llms.txt</a>
           <a href="https://github.com/thembaxx/nest" target="_blank" rel="noreferrer">
             Source code <ArrowUpRight size={12} />
+          </a>
+          <a href="https://github.com/thembaxx/nest/issues" target="_blank" rel="noreferrer">
+            Support
           </a>
         </nav>
         <span>Good things, kept close.</span>

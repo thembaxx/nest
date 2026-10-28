@@ -10,6 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { Modal, NestMark } from "./ui";
 import { useLibrary } from "./library-provider";
+import { personalLibrary } from "@/lib/backup";
 export function OnboardingDialog({
   onClose,
   onImport,
@@ -58,7 +59,7 @@ export function OnboardingDialog({
         <p>
           {step === 0
             ? "Save a thought, a rabbit hole, a someday. Nest keeps your links organized, so you can get back to the good part."
-            : "Your library lives on your device first. Enable cloud sync when you’re ready, and add a private AI companion only if you want one."}
+            : "You’re looking at a sample library. Explore it, or start empty. Your own links stay in this browser; keep a backup before clearing site data. No account or AI download is needed."}
         </p>
       </div>
       {step === 0 ? (
@@ -118,7 +119,7 @@ export function OnboardingDialog({
             <button
               className="text-button"
               onClick={() => {
-                setLibrary((s) => ({ ...s, bookmarks: s.bookmarks.filter((b) => !b.demo) }));
+                setLibrary(personalLibrary);
                 setSettings({ onboarded: true });
                 onClose();
               }}

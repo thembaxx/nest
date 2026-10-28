@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { librarySchema, type Library, type Settings } from "./types";
 import { prepareSyncLibrary } from "./sync";
+import { seed } from "./seed";
 import { mergeWithHistory as mergeLibrary } from "./revision-storage";
 import { decryptData, encryptData, MAX_BACKUP_BYTES, passwordKey } from "./encryption";
 
@@ -63,7 +64,9 @@ export function personalLibrary(library: Library): Library {
   const prepared = prepareSyncLibrary(library);
   const personal = librarySchema.parse({
     bookmarks: prepared.bookmarks.filter((bookmark) => !bookmark.demo),
-    lists: prepared.lists.filter((list) => list.updatedAt !== 0),
+    lists: prepared.lists.filter(
+      (list) => list.updatedAt !== 0 || !seed.lists.some((sample) => sample.id === list.id),
+    ),
   });
   validateIds(personal);
   return personal;
