@@ -1,4 +1,4 @@
-const CACHE='vision-runtime-v1';const HOME=['./index.html','./app.js','./model-worker.js','./style.css'];
+const CACHE='vision-runtime-v1';const HOME=['./index.html','./app.js','./model-worker.js','./style.css','./visual-tags.js'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(HOME)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim());});
 self.addEventListener('fetch',e=>{
