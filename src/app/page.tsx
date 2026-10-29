@@ -1,5 +1,6 @@
 import { LibraryProvider } from "@/components/library-provider";
 import { NestApp } from "@/components/nest-app";
+import { VisionDraftDialog } from "@/components/vision-draft-dialog";
 import { absoluteUrl, brand, jsonLd, siteUrl } from "@/lib/brand";
 const structuredData = {
   "@context": "https://schema.org",
@@ -44,6 +45,7 @@ export default function Home() {
       />
       <LibraryProvider>
         <NestApp />
+        <VisionDraftDialog />
       </LibraryProvider>
       <noscript>
         <section className="no-script-message">
