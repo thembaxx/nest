@@ -12,7 +12,7 @@ function readDraft():Draft|null{
     const value:unknown=JSON.parse(raw);
     if(!value||typeof value!=="object")return null;
     const row=value as Record<string,unknown>;
-    if(row.version!==1||typeof row.createdAt!=="number"||Math.abs(Date.now()-row.createdAt)>15*60*1000)return null;
+    if(row.version!==1||typeof row.createdAt!=="number"||!Number.isFinite(row.createdAt)||Math.abs(Date.now()-row.createdAt)>15*60*1000)return null;
     if(typeof row.note!=="string"||row.note.length>2000||!Array.isArray(row.tags)||row.tags.length>20)return null;
     if(!row.tags.every(tag=>typeof tag==="string"&&tag.length<=80&&/^[-a-z0-9. ]+$/.test(tag)))return null;
     return {version:1,createdAt:row.createdAt,note:row.note.slice(0,1400),tags:row.tags};
