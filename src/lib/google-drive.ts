@@ -71,6 +71,12 @@ export function prepareGoogleSignIn() {
 export async function authorizeGoogleDrive(): Promise<DriveSession> {
   if (!googleDriveConfigured) throw Error("Google Drive sync is unavailable on this installation.");
   await loadIdentity();
+  // A script load event does not guarantee that Google's client API initialized.
+  // Show a recoverable message rather than throwing from window.google below.
+  if (!window.google?.accounts?.oauth2?.initTokenClient) {
+    identityLoading = undefined;
+    throw Error("Google sign-in did not initialize. Check your connection and try again.");
+  }
   return new Promise((resolve, reject) => {
     const client = window.google!.accounts.oauth2.initTokenClient({
       client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
