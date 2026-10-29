@@ -6,6 +6,7 @@ import { librarySchema, type Library, type Settings } from "./types";
 
 const SCOPE = "https://www.googleapis.com/auth/drive.appdata";
 const API = "https://www.googleapis.com/drive/v3/files";
+const MAX_DEVICE_SNAPSHOTS = 200;
 export const googleDriveConfigured = !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 export type DriveSession = { accessToken: string; expiresAt: number };
 export function activeSyncProvider(settings: Settings) {
@@ -143,8 +144,15 @@ export async function syncGoogleDrive(
   return navigator.locks.request("nest-google-drive-sync", { signal }, async () => {
     const key = await importRecoveryKey(recovery);
     const files: z.infer<typeof fileSchema>[] = [];
+    const pageTokens = new Set<string>();
+    let pages = 0;
     let pageToken = "";
     do {
+      // Drive may return empty pages. Bound even unique continuation tokens so a
+      // malformed response cannot keep the sync lock and pending state forever.
+      if (++pages > MAX_DEVICE_SNAPSHOTS + 1 || pageTokens.has(pageToken))
+        throw Error("Google Drive returned an incomplete file listing. Try syncing again.");
+      pageTokens.add(pageToken);
       const query = new URLSearchParams({
         spaces: "appDataFolder",
         q: "trashed = false and (appProperties has { key='nestSync' and value='v1' } or appProperties has { key='application' and value='nest' })",
@@ -157,7 +165,7 @@ export async function syncGoogleDrive(
         .object({ nextPageToken: z.string().optional(), files: z.array(fileSchema) })
         .parse(await response.json());
       files.push(...page.files);
-      if (files.length > 200)
+      if (files.length > MAX_DEVICE_SNAPSHOTS)
         throw Error(
           "This Drive library has too many device snapshots. Export a backup before continuing.",
         );
@@ -166,6 +174,12 @@ export async function syncGoogleDrive(
     files.sort((a, b) => a.id.localeCompare(b.id));
     let merged = personalLibrary(local);
     const name = `nest-sync-v1-${deviceId}.json`;
+    // Pairing one more device must not create snapshot 201: the next listing
+    // would then reject the entire library, including all existing devices.
+    if (files.length === MAX_DEVICE_SNAPSHOTS && !files.some((file) => file.name === name))
+      throw Error(
+        "This Drive library has reached its device snapshot limit. Export a backup before connecting another device.",
+      );
     let own: { id: string; library: Library } | undefined;
     for (const file of files) {
       const response = await driveRequest(session, `${API}/${file.id}?alt=media`, signal);
