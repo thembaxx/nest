@@ -33,6 +33,6 @@ export function validateVisionDraft(value,now=Date.now()){
 }
 export function createVisionDraft(note,tags,createdAt=Date.now()){
   const normalized=String(note||'').trim().slice(0,1400);
-  const cleaned=[...new Set(String(tags||'').toLowerCase().split(',').map(tag=>tag.trim()).filter(tag=>tag.length>0&&tag.length<=80&&/^[-a-z0-9.]+$/.test(tag)))].slice(0,12);
+  const cleaned=[...new Set(String(tags||'').toLowerCase().split(',').map(tag=>tag.trim()).filter(tag=>tag.length>0&&tag.length<=80&&/^[-a-z0-9. ]+$/.test(tag)))].slice(0,12);
   return validateVisionDraft({version:1,createdAt,note:normalized,tags:cleaned},createdAt);
 }
