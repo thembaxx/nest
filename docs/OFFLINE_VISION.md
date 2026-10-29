@@ -6,7 +6,7 @@ Open `/vision/index.html` or the small in-app link. Select a JPEG, PNG or WebP i
 
 ## nest use case
 
-Screenshot descriptions and visible text. Copy the result into bookmark notes or tags; bookmarks and sync remain untouched.
+Screenshot descriptions and visible text. After reviewing/editing the generated note and controlled-vocabulary tag suggestions, choose **Review with my Nest bookmarks**. A short-lived, text-only draft is passed via same-tab `sessionStorage` to the existing Nest library; a second confirmation dialog requires selecting a non-sample bookmark and explicitly saving. Existing tags and notes are preserved. Nothing is added to the bookmark library or synced until Save is clicked. No screenshot bytes are transferred or persisted. If local tab storage is blocked, the normal copy-text fallback still works.
 
 ## Privacy and network boundary
 
@@ -27,7 +27,7 @@ Screenshot descriptions and visible text. Copy the result into bookmark notes or
 
 ## Known limitations
 
-- **Preview only:** No automatic domain-specific record updates, recipe matching, bookmark tagging, submission, or linked evidence annotation. Those need careful integration with the existing workflows.
+- **Preview only:** No automatic domain-specific record updates, recipe matching, or unreviewed bookmark tagging, submission, or linked evidence annotation. Those need careful integration with the existing workflows.
 - Captions and OCR can hallucinate or omit information. This is not an accredited OCR, medical, property, vehicle-safety or legal/compliance evaluation system.
 - The pinned CDN ESM import and model-specific generation APIs need real-device integration testing. No passing runtime, end-to-end or offline inference test is asserted by this PR.
 - Offline model downloads are large and must remain user-initiated. The service worker cache uses device storage and may be evicted.
