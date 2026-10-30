@@ -1,26 +1,180 @@
-import {suggestVisualTags,createVisionDraft} from './visual-tags.js';
-const fileInput=document.querySelector('#file');const preview=document.querySelector('#preview');const placeholder=document.querySelector('#placeholder');const output=document.querySelector('#output');const status=document.querySelector('#status');const analyze=document.querySelector('#analyze');const cancel=document.querySelector('#cancel');const copy=document.querySelector('#copy');const selection=document.querySelector('#mode');const runtime=document.querySelector('#runtime');
-let selected=null,previewUrl=null,worker=null,busy=false;
-function tell(message){status.textContent=message;}
-function resetWorker(){worker?.terminate();worker=null;busy=false;analyze.disabled=!selected;cancel.hidden=true;}
-async function prepareImage(file){const bitmap=await createImageBitmap(file);const limit=selection.value==='ocr'?1800:1280;const scale=Math.min(1,limit/Math.max(bitmap.width,bitmap.height));const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));const ctx=canvas.getContext('2d');if(!ctx)throw Error('Canvas is unavailable on this device.');ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();return canvas.toDataURL('image/jpeg',0.88);}
-fileInput.addEventListener('change',()=>{resetWorker();selected=fileInput.files?.[0]??null;output.textContent='';copy.disabled=true;if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl=null;if(selected){if(!/^image\/(jpeg|png|webp)$/.test(selected.type)||selected.size>10*1024*1024){selected=null;fileInput.value='';tell('Choose a JPEG, PNG, or WebP image up to 10 MB.');}else{previewUrl=URL.createObjectURL(selected);preview.src=previewUrl;preview.hidden=false;placeholder.hidden=true;tell('Image ready. Analysis starts only when you select Analyze.');}}if(!selected){preview.hidden=true;placeholder.hidden=false;}analyze.disabled=!selected;});
-async function resolveDevice(){if(!navigator.gpu?.requestAdapter)return 'wasm';try{const adapter=await navigator.gpu.requestAdapter({powerPreference:'low-power'});return adapter?.features?.has('shader-f16')?'webgpu':'wasm';}catch{return 'wasm';}}
-analyze.addEventListener('click',async()=>{if(!selected||busy)return;busy=true;analyze.disabled=true;cancel.hidden=false;output.textContent='';copy.disabled=true;tell('Preparing image in your browser…');try{const image=await prepareImage(selected);const device=runtime.value==='auto'?await resolveDevice():runtime.value;let triedCpu=false;worker=new Worker('./model-worker.js',{type:'module'});worker.onmessage=({data})=>{if(data.type==='progress')tell(data.message);if(data.type==='result'){output.textContent=data.text;copy.disabled=false;prepareVisualSuggestions(data.text);tell('Completed on your device. Review against the original image.');busy=false;analyze.disabled=false;cancel.hidden=true;}if(data.type==='error'){if(device==='webgpu'&&runtime.value==='auto'&&!triedCpu){triedCpu=true;tell('WebGPU inference failed. Retrying on CPU…');worker.postMessage({type:'analyze',image,mode:selection.value,device:'wasm'});return;}tell('Unable to run local vision: '+data.message+' Try CPU mode or a smaller image.');resetWorker();}};worker.onerror=()=>{tell('Local model worker failed to load. Check model-network access and browser support.');resetWorker();};worker.postMessage({type:'analyze',image,mode:selection.value,device});}catch(error){tell(error instanceof Error?error.message:String(error));resetWorker();}});
-cancel.addEventListener('click',()=>{resetWorker();tell('Analysis cancelled. No image was uploaded.');});
-copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(output.textContent||'');tell('Copied. Review before using the text in the app.');}catch{tell('Clipboard permission was denied. Select the output text to copy it.');}});
-window.addEventListener('pagehide',()=>{worker?.terminate();if(previewUrl)URL.revokeObjectURL(previewUrl);});
-async function offline(){if(!('serviceWorker' in navigator)||!isSecureContext){document.querySelector('#offline').textContent='Offline caching requires HTTPS and service workers.';return;}try{await navigator.serviceWorker.register('./sw.js',{scope:'./'});if(!navigator.serviceWorker.controller?.scriptURL?.endsWith('/vision/sw.js')){document.querySelector('#offline').textContent='Offline shell installed. Reopen this page before downloading the model to enable model caching.';}else document.querySelector('#offline').textContent='Offline cache active. Once model files finish downloading they may be available offline, subject to device storage limits.';}catch{document.querySelector('#offline').textContent='Offline caching unavailable in this browser. Local inference can still be attempted online.';}}
-void offline();
-const visionNote=document.querySelector('#vision-note'),visionTags=document.querySelector('#vision-tags'),sendStatus=document.querySelector('#vision-send-status');
-function prepareVisualSuggestions(caption){
- if(!visionNote.value.trim())visionNote.value=String(caption||'').trim().slice(0,1400);
- if(!visionTags.value.trim())visionTags.value=suggestVisualTags(caption).join(', ');
- sendStatus.textContent='Suggestions are editable. Choose Review with my Nest bookmarks to select the destination and confirm.';
+import { suggestVisualTags, createVisionDraft } from "./visual-tags.js";
+const fileInput = document.querySelector("#file");
+const preview = document.querySelector("#preview");
+const placeholder = document.querySelector("#placeholder");
+const output = document.querySelector("#output");
+const status = document.querySelector("#status");
+const analyze = document.querySelector("#analyze");
+const cancel = document.querySelector("#cancel");
+const copy = document.querySelector("#copy");
+const selection = document.querySelector("#mode");
+const runtime = document.querySelector("#runtime");
+let selected = null,
+  previewUrl = null,
+  worker = null,
+  busy = false;
+function tell(message) {
+  status.textContent = message;
 }
-document.querySelector('#vision-send').addEventListener('click',()=>{
- const draft=createVisionDraft(visionNote.value,visionTags.value);
- if(!draft || (!draft.note&&!draft.tags.length)){sendStatus.textContent='Add a note or at least one tag before continuing.';return;}
- try{sessionStorage.setItem('nest:vision:draft:v1',JSON.stringify(draft));window.location.assign('/?visionDraft=1');}
- catch{sendStatus.textContent='This browser blocked temporary storage. Copy the note or tags manually instead.';}
+function resetWorker() {
+  worker?.terminate();
+  worker = null;
+  busy = false;
+  analyze.disabled = !selected;
+  cancel.hidden = true;
+}
+async function prepareImage(file) {
+  const bitmap = await createImageBitmap(file);
+  const limit = selection.value === "ocr" ? 1800 : 1280;
+  const scale = Math.min(1, limit / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw Error("Canvas is unavailable on this device.");
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return canvas.toDataURL("image/jpeg", 0.88);
+}
+fileInput.addEventListener("change", () => {
+  resetWorker();
+  selected = fileInput.files?.[0] ?? null;
+  output.textContent = "";
+  copy.disabled = true;
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = null;
+  if (selected) {
+    if (!/^image\/(jpeg|png|webp)$/.test(selected.type) || selected.size > 10 * 1024 * 1024) {
+      selected = null;
+      fileInput.value = "";
+      tell("Choose a JPEG, PNG, or WebP image up to 10 MB.");
+    } else {
+      previewUrl = URL.createObjectURL(selected);
+      preview.src = previewUrl;
+      preview.hidden = false;
+      placeholder.hidden = true;
+      tell("Image ready. Analysis starts only when you select Analyze.");
+    }
+  }
+  if (!selected) {
+    preview.hidden = true;
+    placeholder.hidden = false;
+  }
+  analyze.disabled = !selected;
+});
+async function resolveDevice() {
+  if (!navigator.gpu?.requestAdapter) return "wasm";
+  try {
+    const adapter = await navigator.gpu.requestAdapter({ powerPreference: "low-power" });
+    return adapter?.features?.has("shader-f16") ? "webgpu" : "wasm";
+  } catch {
+    return "wasm";
+  }
+}
+analyze.addEventListener("click", async () => {
+  if (!selected || busy) return;
+  busy = true;
+  analyze.disabled = true;
+  cancel.hidden = false;
+  output.textContent = "";
+  copy.disabled = true;
+  tell("Preparing image in your browser…");
+  try {
+    const image = await prepareImage(selected);
+    const device = runtime.value === "auto" ? await resolveDevice() : runtime.value;
+    let triedCpu = false;
+    worker = new Worker("./model-worker.js", { type: "module" });
+    worker.onmessage = ({ data }) => {
+      if (data.type === "progress") tell(data.message);
+      if (data.type === "result") {
+        output.textContent = data.text;
+        copy.disabled = false;
+        prepareVisualSuggestions(data.text);
+        tell("Completed on your device. Review against the original image.");
+        busy = false;
+        analyze.disabled = false;
+        cancel.hidden = true;
+      }
+      if (data.type === "error") {
+        if (device === "webgpu" && runtime.value === "auto" && !triedCpu) {
+          triedCpu = true;
+          tell("WebGPU inference failed. Retrying on CPU…");
+          worker.postMessage({ type: "analyze", image, mode: selection.value, device: "wasm" });
+          return;
+        }
+        tell("Unable to run local vision: " + data.message + " Try CPU mode or a smaller image.");
+        resetWorker();
+      }
+    };
+    worker.onerror = () => {
+      tell("Local model worker failed to load. Check model-network access and browser support.");
+      resetWorker();
+    };
+    worker.postMessage({ type: "analyze", image, mode: selection.value, device });
+  } catch (error) {
+    tell(error instanceof Error ? error.message : String(error));
+    resetWorker();
+  }
+});
+cancel.addEventListener("click", () => {
+  resetWorker();
+  tell("Analysis cancelled. No image was uploaded.");
+});
+copy.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(output.textContent || "");
+    tell("Copied. Review before using the text in the app.");
+  } catch {
+    tell("Clipboard permission was denied. Select the output text to copy it.");
+  }
+});
+window.addEventListener("pagehide", () => {
+  worker?.terminate();
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+});
+async function offline() {
+  if (!("serviceWorker" in navigator) || !isSecureContext) {
+    document.querySelector("#offline").textContent =
+      "Offline caching requires HTTPS and service workers.";
+    return;
+  }
+  try {
+    await navigator.serviceWorker.register("./sw.js", { scope: "./" });
+    if (!navigator.serviceWorker.controller?.scriptURL?.endsWith("/vision/sw.js")) {
+      document.querySelector("#offline").textContent =
+        "Offline shell installed. Reopen this page before downloading the model to enable model caching.";
+    } else
+      document.querySelector("#offline").textContent =
+        "Offline cache active. Once model files finish downloading they may be available offline, subject to device storage limits.";
+  } catch {
+    document.querySelector("#offline").textContent =
+      "Offline caching unavailable in this browser. Local inference can still be attempted online.";
+  }
+}
+void offline();
+const visionNote = document.querySelector("#vision-note"),
+  visionTags = document.querySelector("#vision-tags"),
+  sendStatus = document.querySelector("#vision-send-status");
+function prepareVisualSuggestions(caption) {
+  if (!visionNote.value.trim())
+    visionNote.value = String(caption || "")
+      .trim()
+      .slice(0, 1400);
+  if (!visionTags.value.trim()) visionTags.value = suggestVisualTags(caption).join(", ");
+  sendStatus.textContent =
+    "Suggestions are editable. Choose Review with my Nest bookmarks to select the destination and confirm.";
+}
+document.querySelector("#vision-send").addEventListener("click", () => {
+  const draft = createVisionDraft(visionNote.value, visionTags.value);
+  if (!draft || (!draft.note && !draft.tags.length)) {
+    sendStatus.textContent = "Add a note or at least one tag before continuing.";
+    return;
+  }
+  try {
+    sessionStorage.setItem("nest:vision:draft:v1", JSON.stringify(draft));
+    window.location.assign("/?visionDraft=1");
+  } catch {
+    sendStatus.textContent =
+      "This browser blocked temporary storage. Copy the note or tags manually instead.";
+  }
 });
