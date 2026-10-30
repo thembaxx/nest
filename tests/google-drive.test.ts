@@ -228,3 +228,113 @@ test("permission and quota errors retain HTTP status for retry backoff and never
     drive.restore();
   }
 });
+
+test("pairing at the snapshot limit cannot strand existing devices; their updates still sync", async () => {
+  const drive = fakeDrive();
+  try {
+    const key = recoveryKey();
+    const data = await encryptData(empty, await importRecoveryKey(key), "drive");
+    for (let index = 0; index < 200; index++) {
+      const id = `file${index}`;
+      drive.files.set(id, { id, name: `nest-sync-v1-device${index}.json`, data });
+    }
+    await assert.rejects(sync(key, "new-device", empty), /device snapshot limit/);
+    assert.equal(drive.files.size, 200);
+    assert.equal(drive.writes.length, 0);
+
+    const bookmark = makeBookmark("https://example.org/still-syncs", { id: "existing-device" });
+    const updated = await sync(key, "device0", { bookmarks: [bookmark], lists: [] });
+    assert.deepEqual(updated.bookmarks, [bookmark]);
+    assert.deepEqual(drive.writes, ["file0"]);
+    assert.equal(drive.files.size, 200);
+  } finally {
+    drive.restore();
+  }
+});
+
+test("cyclic and unbounded empty Drive listings fail without any upload", async () => {
+  const drive = fakeDrive();
+  try {
+    for (const repeats of [true, false]) {
+      let requests = 0;
+      const listing = mock.method(globalThis, "fetch", async () => {
+        requests++;
+        return Response.json({
+          files: [],
+          nextPageToken: repeats ? "repeated" : `page${requests}`,
+        });
+      });
+      try {
+        await assert.rejects(sync(recoveryKey(), "phone", empty), /incomplete file listing/);
+        assert.equal(requests, repeats ? 2 : 201);
+        assert.equal(drive.writes.length, 0);
+      } finally {
+        listing.mock.restore();
+      }
+    }
+  } finally {
+    drive.restore();
+  }
+});
+
+test("retry after losing a committed PATCH response preserves deletions and concurrent revisions", async () => {
+  const drive = fakeDrive();
+  try {
+    const key = recoveryKey();
+    const original = makeBookmark("https://example.org/changed", {
+      id: "changed",
+      updatedAt: 10,
+      note: "Original note",
+    });
+    const removed = makeBookmark("https://example.org/removed", {
+      id: "removed",
+      updatedAt: 10,
+    });
+    const initial = { bookmarks: [original, removed], lists: [] };
+    await sync(key, "phone", initial);
+    const laptop = await sync(key, "laptop", initial);
+    const tombstone = { ...removed, updatedAt: 20, deletedAt: 20 };
+    const phone = { bookmarks: [original, tombstone], lists: [] };
+
+    const originalFetch = globalThis.fetch;
+    const lostResponse = mock.method(
+      globalThis,
+      "fetch",
+      async (input: string | URL | Request, init?: RequestInit) => {
+        const response = await originalFetch(input, init);
+        if (init?.method === "PATCH") throw new TypeError("Network response lost after commit");
+        return response;
+      },
+    );
+    try {
+      await assert.rejects(sync(key, "phone", phone), /response lost/);
+    } finally {
+      lostResponse.mock.restore();
+    }
+
+    // Another device edits a separate record while retaining an older live copy
+    // of the removed bookmark. Neither that copy nor a retry may resurrect it.
+    const changed = { ...original, updatedAt: 30, note: "Edited on laptop" };
+    const laptopResult = await sync(key, "laptop", {
+      ...laptop,
+      bookmarks: [changed, removed],
+    });
+    const recovered = await sync(key, "phone", phone);
+    assert.deepEqual(recovered, laptopResult);
+    assert.equal(recovered.bookmarks.find((bookmark) => bookmark.id === "removed")?.deletedAt, 20);
+    assert.equal(
+      recovered.bookmarks.find((bookmark) => bookmark.id === "changed")?.note,
+      changed.note,
+    );
+    assert.equal(drive.files.size, 2, "retry reuses each device's existing snapshot");
+    const writes = drive.writes.length;
+    await sync(key, "phone", recovered);
+    assert.equal(
+      drive.writes.length,
+      writes,
+      "a recovered unchanged snapshot is not uploaded again",
+    );
+  } finally {
+    drive.restore();
+  }
+});

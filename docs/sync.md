@@ -36,6 +36,17 @@ Google's browser token model gives short-lived access tokens. Tokens stay in mem
 
 Each device writes its own snapshot and reads/merges the other snapshots. This prevents concurrent devices from replacing each other's entire library. Google sync requires Web Locks to serialize tabs sharing a device file. Local backups remain available without Web Locks. Last-write-wins reconciliation keeps tombstones; equal timestamps use a deterministic tie break with removals taking precedence. Device clocks should be reasonably accurate. Unchanged snapshots are not uploaded. Permission/quota failures back off from 30 seconds to five minutes; Sync now lets the user retry immediately. There is a limit of 200 device snapshots and 20 MB per snapshot. Snapshots accumulate as devices are added; very large libraries or many old devices increase storage and download usage. A malformed, oversized, or incorrectly encrypted snapshot stops sync before any file is overwritten.
 
+At 200 snapshots, existing devices can keep updating their own files, but pairing
+a new device stops before creating another snapshot. This prevents a new pairing
+from exceeding the limit and blocking every existing device. Cyclic or unbounded
+Drive pagination also stops before any upload; retry after checking the service
+instead of deleting existing snapshots. Keep an encrypted backup before any
+manual cleanup, because old snapshots preserve deletion history.
+The check is based on the observed listing, not an atomic reservation across
+devices: simultaneous new pairings near capacity can still exceed the limit.
+Pair new devices one at a time near capacity; automatic compaction is not
+implemented.
+
 ### Upgrading the earlier Google integration
 
 The earlier release wrote readable Google snapshots and a flat version-1 JSON backup. Both remain supported: restoring accepts both old and new backup shapes, and Google sync reads the older device files into the new encrypted snapshot. Existing files are retained so an upgrade cannot erase recovery data. A saved local/Google provider choice is respected even when an old Neon recovery key is still present; upgrading does not silently resume server sync.
@@ -59,3 +70,23 @@ References checked on 2026-10-17:
 ## Verification
 
 `pnpm test` covers backup round trips, legacy files, schema rejection, credentials exclusion, repeat restores, tombstones, deterministic conflicts, and mocked Drive transport including independent device files and failed requests. `tests/sync-backup.spec.ts` checks older backup formats, repeated restores, optional preferences, offline recovery, 320px settings, and migration of existing Google snapshots. `tests/sync-data.spec.ts` checks encrypted downloads, pairing between profiles, offline edits, reauthorization, and recovery after a lost upload response. These mocks do not establish that a real OAuth project is configured correctly; verify the deployed origin with two Google-authorized browser profiles before release.
+
+Follow the [opt-in real-device acceptance procedure](google-drive-acceptance.md)
+to verify actual Google consent, two physical devices, offline conflicts,
+deletions and recovery. Its result remains **NOT RUN** until that journey is
+observed with the configured real provider.
+
+### Local regression verification, 29 October 2026
+
+Frozen installation, all **72 unit tests**, lint, TypeScript, formatting and the
+production build passed for the snapshot-limit and pagination changes. The unit
+suite checks pairing rejection at 200 snapshots, an existing device updating at
+that limit, repeated/unique endless page tokens, and retry after a committed
+PATCH response is lost while another device edits and a deletion propagates.
+
+All **8 Chromium browser tests** in `tests/sync-data.spec.ts` and
+`tests/sync-backup.spec.ts` passed against the production build. This run used
+`NEXT_PUBLIC_GOOGLE_CLIENT_ID=test-client.apps.googleusercontent.com`, the system
+Chromium executable and an isolated local server on port 3107; Google requests
+were mocked. Real Google consent, physical-device behavior and WebKit were
+**not run**. These results do not establish live-provider acceptance.
