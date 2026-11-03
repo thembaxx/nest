@@ -257,9 +257,11 @@ svg {
 .collection-nav > button > span:nth-child(2) {
   flex: 1;
 }
-.main-nav > button:hover,
-.collection-nav > button:hover {
-  background: var(--green-soft);
+@media (hover: hover) and (pointer: fine) {
+  .main-nav > button:hover,
+  .collection-nav > button:hover {
+    background: var(--green-soft);
+  }
 }
 .main-nav > button.active,
 .collection-nav > button.active {
@@ -291,8 +293,10 @@ svg {
   min-height: 30px;
   min-width: 30px;
 }
-.icon-button:hover {
-  background: var(--green-soft);
+@media (hover: hover) and (pointer: fine) {
+  .icon-button:hover {
+    background: var(--green-soft);
+  }
 }
 .collection-nav {
   display: grid;
@@ -510,16 +514,20 @@ h1 {
     background 0.2s,
     transform 0.2s;
 }
-.button:hover:not(:disabled) {
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .button:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
 }
 .button.primary {
   background: var(--green);
   color: var(--bg);
   box-shadow: 0 2px 3px #26382908;
 }
-.button.primary:hover {
-  background: color-mix(in srgb, var(--green) 90%, #000);
+@media (hover: hover) and (pointer: fine) {
+  .button.primary:hover {
+    background: color-mix(in srgb, var(--green) 90%, #000);
+  }
 }
 .button.secondary {
   background: var(--surface);
@@ -563,8 +571,10 @@ h1 {
   color: var(--muted);
   text-align: left;
 }
-.text-button:hover {
-  color: var(--green);
+@media (hover: hover) and (pointer: fine) {
+  .text-button:hover {
+    color: var(--green);
+  }
 }
 .collection-cards {
   display: grid;
@@ -586,8 +596,10 @@ h1 {
   isolation: isolate;
   transition: transform 0.25s;
 }
-.collection-card:hover {
-  transform: translateY(-3px);
+@media (hover: hover) and (pointer: fine) {
+  .collection-card:hover {
+    transform: translateY(-3px);
+  }
 }
 .collection-lilac {
   background: #e8e2ed;
@@ -883,9 +895,13 @@ h1 {
   transform-origin: left center;
   transition: transform 0.25s ease;
 }
-.bookmark-grid.shelf-view .bookmark-card:focus-within .card-cover,
-.bookmark-grid.shelf-view .bookmark-card:hover .card-cover {
+.bookmark-grid.shelf-view .bookmark-card:focus-within .card-cover {
   transform: rotateY(0);
+}
+@media (hover: hover) and (pointer: fine) {
+  .bookmark-grid.shelf-view .bookmark-card:hover .card-cover {
+    transform: rotateY(0);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .bookmark-grid.shelf-view .card-cover {
@@ -901,8 +917,10 @@ h1 {
   transition: box-shadow 0.2s;
   min-width: 0;
 }
-.bookmark-card:hover {
-  box-shadow: var(--shadow);
+@media (hover: hover) and (pointer: fine) {
+  .bookmark-card:hover {
+    box-shadow: var(--shadow);
+  }
 }
 .card-cover {
   width: 100%;
@@ -921,8 +939,10 @@ h1 {
   object-fit: cover;
   transition: transform 0.5s;
 }
-.card-cover:hover > img {
-  transform: scale(1.035);
+@media (hover: hover) and (pointer: fine) {
+  .card-cover:hover > img {
+    transform: scale(1.035);
+  }
 }
 .cover-corner {
   position: absolute;
@@ -939,8 +959,10 @@ h1 {
   opacity: 0;
   transition: opacity 0.2s;
 }
-.card-cover:hover .cover-corner {
-  opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+  .card-cover:hover .cover-corner {
+    opacity: 1;
+  }
 }
 .read-label {
   position: absolute;
@@ -1026,8 +1048,10 @@ h1 {
   white-space: nowrap;
   width: 100%;
 }
-.card-title:hover {
-  color: var(--green);
+@media (hover: hover) and (pointer: fine) {
+  .card-title:hover {
+    color: var(--green);
+  }
 }
 .card-content > p {
   font-size: 10px;
@@ -2891,8 +2915,10 @@ html body :is(input, textarea, select, [contenteditable="true"]) {
   min-width: 32px;
   min-height: 32px;
 }
-.collection-manage:hover {
-  background: #ffffffa0;
+@media (hover: hover) and (pointer: fine) {
+  .collection-manage:hover {
+    background: #ffffffa0;
+  }
 }
 .collection-tile .collection-top {
   justify-content: flex-start;
@@ -3001,8 +3027,10 @@ html body :is(input, textarea, select, [contenteditable="true"]) {
 .saved-picker-row + .saved-picker-row {
   border-top: 1px solid var(--line);
 }
-.saved-picker-row:hover {
-  background: var(--green-soft);
+@media (hover: hover) and (pointer: fine) {
+  .saved-picker-row:hover {
+    background: var(--green-soft);
+  }
 }
 .saved-picker-row.already-here {
   opacity: 0.55;
@@ -3246,9 +3274,11 @@ html {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.collection-nav-row > button:first-child:hover,
-.collection-nav-options:hover {
-  background: var(--green-soft);
+@media (hover: hover) and (pointer: fine) {
+  .collection-nav-row > button:first-child:hover,
+  .collection-nav-options:hover {
+    background: var(--green-soft);
+  }
 }
 .collection-nav-row > button:first-child.active {
   background: var(--green-soft);
