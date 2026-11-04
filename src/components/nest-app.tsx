@@ -535,6 +535,7 @@ export function NestApp() {
             <div
               className="bookmark-source-tabs"
               role="tablist"
+              tabIndex={-1}
               aria-label="Bookmark source"
               onKeyDown={(event) => {
                 if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
