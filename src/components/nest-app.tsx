@@ -532,9 +532,32 @@ export function NestApp() {
             </section>
           )}
           {settings.xImportEnabled && (view === "all" || view === "x") && (
-            <div className="bookmark-source-tabs" role="tablist" aria-label="Bookmark source">
+            <div
+              className="bookmark-source-tabs"
+              role="tablist"
+              aria-label="Bookmark source"
+              onKeyDown={(event) => {
+                if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                event.preventDefault();
+                const next: "all" | "x" =
+                  event.key === "Home"
+                    ? "all"
+                    : event.key === "End"
+                      ? "x"
+                      : view === "all"
+                        ? "x"
+                        : "all";
+                navigate(next);
+                event.currentTarget
+                  .querySelector<HTMLButtonElement>(`#bookmark-source-${next}`)
+                  ?.focus();
+              }}
+            >
               <button
+                id="bookmark-source-all"
                 role="tab"
+                tabIndex={view === "all" ? 0 : -1}
+                aria-controls="bookmark-source-panel"
                 aria-selected={view === "all"}
                 className={view === "all" ? "active" : ""}
                 onClick={() => navigate("all")}
@@ -543,7 +566,10 @@ export function NestApp() {
                 <span>{ordinary.filter((b) => !b.archived).length}</span>
               </button>
               <button
+                id="bookmark-source-x"
                 role="tab"
+                tabIndex={view === "x" ? 0 : -1}
+                aria-controls="bookmark-source-panel"
                 aria-selected={view === "x"}
                 className={view === "x" ? "active" : ""}
                 onClick={() => navigate("x")}
@@ -582,7 +608,19 @@ export function NestApp() {
             </div>
           )}
 
-          <section className="library-section" aria-labelledby="library-heading">
+          <section
+            id="bookmark-source-panel"
+            className="library-section"
+            aria-labelledby={
+              settings.xImportEnabled && (view === "all" || view === "x")
+                ? view === "all"
+                  ? "bookmark-source-all"
+                  : "bookmark-source-x"
+                : "library-heading"
+            }
+            role={settings.xImportEnabled && (view === "all" || view === "x") ? "tabpanel" : undefined}
+            tabIndex={settings.xImportEnabled && (view === "all" || view === "x") ? 0 : undefined}
+          >
             <div className="section-title library-title">
               <h2 id="library-heading">
                 {query
