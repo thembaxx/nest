@@ -4,6 +4,7 @@ import { PageEdges } from "@/components/page-edges";
 import { pagePalettes, pagePaletteCSS, initialThemeScript } from "@/lib/page-palette";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
+import "./mobile-ux.css";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: { default: brand.title, template: "%s · Nest" },

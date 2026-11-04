@@ -1,0 +1,57 @@
+/* Mobile bookmark browsing and import: readable fields, reachable sheets and touch targets. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+:is(.main-shell, .bookmark-grid, .collection-cards, .bookmark-card, .search-toolbar) {
+  min-width: 0;
+}
+:is(.card-title, .detail-url, .input-hint, .privacy-note) {
+  overflow-wrap: anywhere;
+}
+:is(
+  .search-field input,
+  .assistant-input textarea,
+  .inline-input,
+  .modal input,
+  .modal select,
+  .modal textarea
+) {
+  font-size: 16px;
+}
+.modal-inner {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.mobile-bottom-nav :is(a, button),
+.bookmark-card .card-more {
+  min-width: 44px;
+  min-height: 44px;
+}
+@media (pointer: coarse), (max-width: 767px) {
+  :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) {
+    font-size: 16px !important;
+  }
+}
+@media (max-width: 600px) {
+  .search-toolbar,
+  .filter-row {
+    row-gap: 12px;
+  }
+  .modal {
+    max-width: calc(100vw - 24px);
+  }
+  .modal-inner {
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 390px) {
+  .bookmark-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobile-bottom-nav :is(a, button) {
+    transition: none;
+  }
+}
