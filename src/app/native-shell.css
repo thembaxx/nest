@@ -1,13 +1,15 @@
 /* Nest installed shell: preserve its adaptive page-edge palette and existing navigation. */
 @media (display-mode: standalone) {
-  html, body, .app-shell {
+  html,
+  body,
+  .app-shell {
     min-height: 100dvh;
   }
   .skip-link:focus {
     top: max(12px, env(safe-area-inset-top, 0px));
   }
   .modal[open] {
-    max-height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px)) - max(12px, env(safe-area-inset-bottom, 0px)));
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   }
   .modal-inner {
     max-height: inherit;
