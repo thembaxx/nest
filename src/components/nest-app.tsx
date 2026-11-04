@@ -618,7 +618,9 @@ export function NestApp() {
                   : "bookmark-source-x"
                 : "library-heading"
             }
-            role={settings.xImportEnabled && (view === "all" || view === "x") ? "tabpanel" : undefined}
+            role={
+              settings.xImportEnabled && (view === "all" || view === "x") ? "tabpanel" : undefined
+            }
             tabIndex={settings.xImportEnabled && (view === "all" || view === "x") ? 0 : undefined}
           >
             <div className="section-title library-title">

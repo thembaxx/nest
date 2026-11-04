@@ -9,7 +9,14 @@ html {
 :is(.card-title, .detail-url, .input-hint, .privacy-note) {
   overflow-wrap: anywhere;
 }
-:is(.search-field input, .assistant-input textarea, .inline-input, .modal input, .modal select, .modal textarea) {
+:is(
+  .search-field input,
+  .assistant-input textarea,
+  .inline-input,
+  .modal input,
+  .modal select,
+  .modal textarea
+) {
   font-size: 16px;
 }
 .modal-inner {
