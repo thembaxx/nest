@@ -5,6 +5,7 @@ import { pagePalettes, pagePaletteCSS, initialThemeScript } from "@/lib/page-pal
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import "./mobile-ux.css";
+import "./native-shell.css";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: { default: brand.title, template: "%s · Nest" },
