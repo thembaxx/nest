@@ -1,0 +1,28 @@
+/* Nest installed shell: preserve its adaptive page-edge palette and existing navigation. */
+@media (display-mode: standalone) {
+  html, body, .app-shell {
+    min-height: 100dvh;
+  }
+  .skip-link:focus {
+    top: max(12px, env(safe-area-inset-top, 0px));
+  }
+  .modal[open] {
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px)) - max(12px, env(safe-area-inset-bottom, 0px)));
+  }
+  .modal-inner {
+    max-height: inherit;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+@media (max-width: 700px) and (display-mode: standalone) {
+  .mobile-bottom-nav {
+    padding-left: max(8px, env(safe-area-inset-left, 0px));
+    padding-right: max(8px, env(safe-area-inset-right, 0px));
+    padding-bottom: max(11px, env(safe-area-inset-bottom, 0px));
+  }
+  .toast {
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+}
