@@ -55,3 +55,37 @@ html {
     transition: none;
   }
 }
+
+/* Keep first-visit actions readable and reachable at 320px in the PWA. */
+@media (max-width: 600px) {
+  .modal:has(.onboarding-art) .modal-inner {
+    padding: 18px;
+  }
+  .modal:has(.onboarding-art) .modal-header {
+    margin-bottom: 12px;
+  }
+  .modal:has(.onboarding-art) .modal-header h2 {
+    font-size: 27px;
+  }
+  .onboarding-art {
+    height: 76px;
+  }
+  .onboarding-art > svg {
+    width: 60px;
+    height: 60px;
+  }
+  .onboarding-copy {
+    padding: 12px 0 8px;
+  }
+  .onboarding-copy p {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .onboarding-buttons :is(.button, .text-button) {
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .onboarding-options > :is(label, button) {
+    min-height: 48px;
+  }
+}
