@@ -3,10 +3,7 @@ import { useState } from "react";
 import {
   ArrowRight,
   Upload,
-  Check,
   Sparkle as Sparkles,
-  Leaf,
-  LinkSimple as Link,
 } from "@phosphor-icons/react";
 import { Modal, NestMark } from "./ui";
 import { useLibrary } from "./library-provider";
@@ -24,42 +21,20 @@ export function OnboardingDialog({
   const { setSettings, setLibrary } = useLibrary();
   return (
     <Modal
-      title={step === 0 ? "Good things deserve a little home." : "A calmer corner of the internet."}
+      title={step === 0 ? "Welcome to Nest" : "Make Nest yours"}
       onClose={() => {
         setSettings({ onboarded: true });
         onClose();
       }}
     >
-      <div className="onboarding-art">
-        <div className="floating-link">
-          <Link size={16} /> A lovely little find <Check size={14} />
-        </div>
+      <div className="onboarding-art" aria-hidden="true">
         <NestMark />
-        <div className="floating-link second">
-          <Leaf size={16} /> Tucked away, naturally.
-        </div>
       </div>
       <div className="onboarding-copy">
-        <span className="eyebrow">WELCOME TO NEST</span>
-        <h3>
-          {step === 0 ? (
-            <>
-              For everything that
-              <br />
-              sparks your curiosity.
-            </>
-          ) : (
-            <>
-              Less tending.
-              <br />
-              More discovering.
-            </>
-          )}
-        </h3>
         <p>
           {step === 0
-            ? "Save a thought, a rabbit hole, a someday. Nest keeps your links organized, so you can get back to the good part."
-            : "You’re looking at a sample library. Explore it, or start empty. Your own links stay in this browser; keep a backup before clearing site data. No account or AI download is needed."}
+            ? "Save and organize your links. Import bookmarks or explore the sample library."
+            : "Start with sample links or an empty library. Your own links stay in this browser; export a backup before clearing site data. AI is optional."}
         </p>
       </div>
       {step === 0 ? (
@@ -129,7 +104,7 @@ export function OnboardingDialog({
           </div>
         </>
       )}
-      <div className="step-dots">
+      <div className="step-dots" aria-hidden="true">
         <span className={step === 0 ? "active" : ""} />
         <span className={step === 1 ? "active" : ""} />
       </div>
