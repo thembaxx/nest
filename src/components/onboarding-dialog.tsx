@@ -29,8 +29,8 @@ export function OnboardingDialog({
       <div className="onboarding-copy">
         <p>
           {step === 0
-            ? "Save and organize your links. Import bookmarks or explore the sample library."
-            : "Start with sample links or an empty library. Your own links stay in this browser; export a backup before clearing site data. AI is optional."}
+            ? "Import your bookmarks, or explore a sample library."
+            : "Choose sample links or an empty library. Your links stay in this browser until you export a backup."}
         </p>
       </div>
       {step === 0 ? (
