@@ -1,10 +1,6 @@
 "use client";
 import { useState } from "react";
-import {
-  ArrowRight,
-  Upload,
-  Sparkle as Sparkles,
-} from "@phosphor-icons/react";
+import { ArrowRight, Upload, Sparkle as Sparkles } from "@phosphor-icons/react";
 import { Modal, NestMark } from "./ui";
 import { useLibrary } from "./library-provider";
 import { personalLibrary } from "@/lib/backup";
