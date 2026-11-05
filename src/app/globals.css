@@ -1837,7 +1837,7 @@ h1 {
   gap: 7px;
 }
 .onboarding-art {
-  height: 210px;
+  height: 132px;
   border-radius: 18px;
   position: relative;
   background:
@@ -1877,7 +1877,7 @@ h1 {
 }
 .onboarding-copy {
   text-align: center;
-  padding: 25px 12px 15px;
+  padding: 16px 8px 10px;
 }
 .onboarding-copy h3 {
   font:
@@ -1888,10 +1888,10 @@ h1 {
   margin: 15px 0;
 }
 .onboarding-copy p {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--muted);
-  line-height: 1.9;
-  max-width: 370px;
+  line-height: 1.55;
+  max-width: 420px;
   margin: auto;
 }
 .onboarding-buttons {
@@ -2544,7 +2544,7 @@ h1 {
     margin-left: 39px;
   }
   .onboarding-art {
-    height: 180px;
+    height: 104px;
   }
   .onboarding-art > .floating-link {
     left: 16px;
@@ -2566,7 +2566,7 @@ h1 {
     font-size: 34px;
   }
   .onboarding-copy {
-    padding: 23px 0 14px;
+    padding: 12px 0 10px;
   }
   .row .card-cover {
     width: 87px;
